@@ -1,0 +1,44 @@
+migrations = "./migrations"
+
+debug = true
+# enabling debug mode will disable JWT authorization
+
+[http]
+port = 8000
+
+[jwt]
+key = "secret"
+algo = "HS256"
+
+[auth]
+enabled = false
+type = "body"
+encrypt = "MD5"
+table = "prest_users"
+username = "username"
+password = "password"
+
+[pg]
+host = "127.0.0.1"
+user = "bhargav"
+pass = "Bhargav123"
+port = 5432
+database = "bhargav"
+single = false
+## or used cloud factor
+# URL = "postgresql://user:pass@localhost/mydatabase/?sslmode=disable"
+
+[ssl]
+mode = "disable"
+sslcert = "./PATH"
+sslkey = "./PATH"
+sslrootcert = "./PATH"
+
+[expose]
+enabled = true
+databases = true
+schemas = true
+tables = true
+
+[cors]
+alloworigin = ["*"]
