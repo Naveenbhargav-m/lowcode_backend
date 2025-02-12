@@ -31,3 +31,7 @@ type Table struct {
 type Schema struct {
 	Tables map[string]Table `json:"tables"`
 }
+
+type ViewParams struct {
+	Code string `json:"code"`
+}
