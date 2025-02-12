@@ -35,3 +35,13 @@ type Schema struct {
 type ViewParams struct {
 	Code string `json:"code"`
 }
+
+type TriggerParams struct {
+	FunctionCode string `json:"function_code"` // Optional: SQL for function creation
+	Code         string `json:"code"`          // SQL for trigger creation
+}
+
+// QueryParams is used for executing arbitrary queries.
+type QueryParams struct {
+	Code string `json:"code"`
+}

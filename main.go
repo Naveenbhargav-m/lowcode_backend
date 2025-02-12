@@ -15,6 +15,8 @@ import (
 	"lowcode.com/backend/dbstore"
 	"lowcode.com/backend/middleware"
 	"lowcode.com/backend/tables"
+	"lowcode.com/backend/triggers"
+	"lowcode.com/backend/views"
 )
 
 // Utility: Validate PostgreSQL identifiers
@@ -221,6 +223,8 @@ func main() {
 	mux.HandleFunc("/api/create-table", createTableHandler)
 	mux.Handle("/api/update-table/{app_id}", registerwithDB(tables.TablesModifierHandler))
 	mux.Handle("/api/tables/{app_id}", registerwithDB(tables.TablesModifierHandler))
+	mux.Handle("/api/views/{app_id}", registerwithDB(views.ViewHandler))
+	mux.Handle("/api/triggers/{app_id}", registerwithDB(triggers.TriggerHandler))
 	// dbmux := middleware.DBInjectionMiddleware(mux)
 	newmux := middleware.CorsMiddleware(mux)
 	server := http.Server{
