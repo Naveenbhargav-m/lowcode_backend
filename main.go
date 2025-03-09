@@ -225,6 +225,7 @@ func main() {
 	mux.Handle("/api/tables/{app_id}", registerwithDB(tables.TablesModifierHandler))
 	mux.Handle("/api/views/{app_id}", registerwithDB(views.ViewHandler))
 	mux.Handle("/api/triggers/{app_id}", registerwithDB(triggers.TriggerHandler))
+	mux.Handle("/api/sql/{app_id}", registerwithDB(views.RawQueryHandler))
 	// dbmux := middleware.DBInjectionMiddleware(mux)
 	newmux := middleware.CorsMiddleware(mux)
 	server := http.Server{
