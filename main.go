@@ -99,16 +99,36 @@ func createDatabaseHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create tables in the new database
 	queries := []string{
-		"CREATE TABLE screens (id SERIAL PRIMARY KEY, screen_name VARCHAR(255), tags TEXT[], configs JSONB);",
-		"CREATE TABLE forms (id SERIAL PRIMARY KEY, form_name VARCHAR(255), table_name VARCHAR(255), fields JSONB);",
-		"CREATE TABLE global_states (id SERIAL PRIMARY KEY, state_name TEXT, default_value JSONB, screen_name TEXT, screen_id INT);",
-		"CREATE TABLE tables_data (id SERIAL PRIMARY KEY, table_name TEXT, label TEXT, fields JSONB);",
+		"CREATE TABLE _screens (id SERIAL PRIMARY KEY, screen_name VARCHAR(255), tags TEXT[], configs JSONB);",
+		"CREATE TABLE _forms (id SERIAL PRIMARY KEY, form_name VARCHAR(255), table_name VARCHAR(255), fields JSONB);",
+		"CREATE TABLE _global_states (id SERIAL PRIMARY KEY, state_name TEXT, default_value JSONB, screen_name TEXT, screen_id INT);",
+		"CREATE TABLE _templates (id SERIAL PRIMARY KEY, template_name VARCHAR(255), configs JSONB, tags VARCHAR(255));",
+		"CREATE TABLE _components (id SERIAL PRIMARY KEY, component_name VARCHAR(255), configs JSONB, tags TEXT[]);",
+		"CREATE TABLE _themes (id SERIAL PRIMARY KEY, theme_name VARCHAR(255), dark_theme JSONB, light_theme JSONB, is_default BOOLEAN);",
+		"CREATE TABLE _tables (id SERIAL PRIMARY KEY, tables_data JSONB);",
+		"CREATE TABLE _views (id SERIAL PRIMARY KEY, views_data JSONB);",
+		"CREATE TABLE _workflows (id SERIAL PRIMARY KEY, nodes JSONB, edges JSONB, flow_data JSONB, name VARCHAR(255));",
+		"CREATE TABLE _triggers (id SERIAL PRIMARY KEY, triggers_data JSONB);",
+	}
+
+	dataQueries := []string{
+		"INSERT INTO _tables (tables_data) VALUES ('{}');",
+		"INSERT INTO _views (views_data) VALUES ('{}');",
+		"INSERT INTO _triggers (triggers_data) VALUES ('{}');",
 	}
 
 	for _, query := range queries {
 		if _, err := newDB.Exec(context.Background(), query); err != nil {
 			http.Error(w, fmt.Sprintf("Failed to create table: %v", err), http.StatusInternalServerError)
 			log.Println("Table creation error:", err)
+			return
+		}
+	}
+
+	for _, query := range dataQueries {
+		if _, err := newDB.Exec(context.Background(), query); err != nil {
+			http.Error(w, fmt.Sprintf("Failed to execute data query: %v", err), http.StatusInternalServerError)
+			log.Println("Data query running error:", err)
 			return
 		}
 	}
