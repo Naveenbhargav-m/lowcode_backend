@@ -258,6 +258,9 @@ func main() {
 	}
 }
 
+// this middleware, will inject the db connection form the db pool in to the context.
+//
+// this will be based on the app_id in url params.
 func registerwithDB(handlerfunc func(w http.ResponseWriter, r *http.Request)) http.Handler {
 	return middleware.DBInjectionMiddleware(http.HandlerFunc(handlerfunc))
 }

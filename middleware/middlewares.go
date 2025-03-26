@@ -23,6 +23,9 @@ func CorsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// middleware to add the db connection of respective app to the request context.
+//
+// The app_id will be read from path param.
 func DBInjectionMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		appID := r.PathValue("app_id") // Adjust based on how app_id is passed
