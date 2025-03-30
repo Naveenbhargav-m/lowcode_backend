@@ -41,4 +41,6 @@ schemas = true
 tables = true
 
 [cors]
-alloworigin = ["*"]
+alloworigin = ["http:localhost:5173", "*"]
+allowheaders = ["Content-Type"]
+allowmethods = ["GET", "DELETE", "POST", "PUT", "PATCH", "OPTIONS"]
