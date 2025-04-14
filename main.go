@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	appcrud "lowcode.com/backend/app_crud"
 	"lowcode.com/backend/dbstore"
 	"lowcode.com/backend/middleware"
 	"lowcode.com/backend/tables"
@@ -100,8 +101,8 @@ func createDatabaseHandler(w http.ResponseWriter, r *http.Request) {
 	// Create tables in the new database
 	queries := []string{
 		"CREATE TABLE _screens (id SERIAL PRIMARY KEY, screen_name VARCHAR(255), tags TEXT[], configs JSONB);",
-		"CREATE TABLE _forms (id SERIAL PRIMARY KEY, form_name VARCHAR(255), table_name VARCHAR(255), fields JSONB);",
-		"CREATE TABLE _global_states (id SERIAL PRIMARY KEY, state_name TEXT, default_value JSONB, screen_name TEXT, screen_id INT);",
+		"CREATE TABLE _forms (id SERIAL PRIMARY KEY, form_name VARCHAR(255), table_name VARCHAR(255), configs JSONB);",
+		"CREATE TABLE _global_states (id SERIAL PRIMARY KEY, signals JSONB);",
 		"CREATE TABLE _templates (id SERIAL PRIMARY KEY, template_name VARCHAR(255), configs JSONB, tags VARCHAR(255));",
 		"CREATE TABLE _components (id SERIAL PRIMARY KEY, component_name VARCHAR(255), configs JSONB, tags TEXT[]);",
 		"CREATE TABLE _themes (id SERIAL PRIMARY KEY, theme_name VARCHAR(255), dark_theme JSONB, light_theme JSONB, is_default BOOLEAN);",
@@ -115,6 +116,7 @@ func createDatabaseHandler(w http.ResponseWriter, r *http.Request) {
 		"INSERT INTO _tables (tables_data) VALUES ('{}');",
 		"INSERT INTO _views (views_data) VALUES ('{}');",
 		"INSERT INTO _triggers (triggers_data) VALUES ('{}');",
+		"INSERT INTO _global_states (signals) VALUES ('{}')",
 	}
 
 	for _, query := range queries {
@@ -246,6 +248,10 @@ func main() {
 	mux.Handle("/api/views/{app_id}", registerwithDB(views.ViewHandler))
 	mux.Handle("/api/triggers/{app_id}", registerwithDB(triggers.TriggerHandler))
 	mux.Handle("/api/sql/{app_id}", registerwithDB(views.RawQueryHandler))
+	mux.Handle(
+		"/api/{app_id}/{schema}/{table_name}",
+		registerwithDB(http.HandlerFunc(appcrud.HandleDatabaseRequest)),
+	)
 	// dbmux := middleware.DBInjectionMiddleware(mux)
 	newmux := middleware.CorsMiddleware(mux)
 	server := http.Server{

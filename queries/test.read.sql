@@ -1,0 +1,1 @@
+SELECT * FROM "{{}}" WHERE name = "{{.field1}}" OR name = "{{.field2}}";
