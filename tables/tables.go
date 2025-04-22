@@ -18,20 +18,17 @@ func TablesModifierHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "app_id is required", http.StatusBadRequest)
 		return
 	}
-
 	var payload types.TransactionPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
-
 	queries, err := ProcessTransactions(payload.Transactions)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error processing transactions: %v", err), http.StatusInternalServerError)
 		return
 	}
 	connPool := r.Context().Value("db_conn").(*pgxpool.Pool)
-
 	// Switch to the database specified by appid
 	dbConn, err := connPool.Acquire(context.Background())
 	if err != nil {
@@ -54,14 +51,15 @@ func TablesModifierHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
+	configsJSon, _ := json.Marshal(&payload.Configs)
+	query := "update _tables set tables_data = $1 where id = 1"
+	_, _ = dbConn.Exec(context.Background(), query, configsJSon)
 	json.NewEncoder(w).Encode(payload.Configs)
-
 }
 
 // ProcessTransactions processes all transactions and returns the generated SQL queries
 func ProcessTransactions(transactions []types.Transaction) ([]string, error) {
 	var queries []string
-
 	for _, transaction := range transactions {
 		query, err := GenerateSQLQuery(transaction)
 		if err != nil {
@@ -69,7 +67,6 @@ func ProcessTransactions(transactions []types.Transaction) ([]string, error) {
 		}
 		queries = append(queries, query)
 	}
-
 	return queries, nil
 }
 
@@ -121,7 +118,6 @@ func GenerateCreateTableSQL(transaction types.Transaction) (string, error) {
 	if len(transaction.Fields) == 0 {
 		return "", fmt.Errorf("no fields defined for table %s", transaction.Table)
 	}
-
 	var fieldDefs []string
 	var primaryKeys []string
 
@@ -185,7 +181,6 @@ func GenerateAlterFieldSQL(transaction types.Transaction) (string, error) {
 	if err := json.Unmarshal(transaction.Modifications, &modifications); err != nil {
 		return "", fmt.Errorf("error unmarshaling modifications: %v", err)
 	}
-
 	var alterCommands []string
 	tableName := FormatName(transaction.Table)
 	fieldName := FormatName(transaction.Field.(string))
@@ -237,7 +232,6 @@ func GenerateCreateForeignKeySQL(transaction types.Transaction) string {
 func FormatFieldDefinition(field types.Field, isAlterTable bool) (string, error) {
 	var parts []string
 	parts = append(parts, FormatName(field.Name))
-
 	// Convert dataType to lowercase for consistency
 	dataType := strings.ToLower(field.DataType)
 
