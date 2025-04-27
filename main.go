@@ -110,8 +110,10 @@ func createDatabaseHandler(w http.ResponseWriter, r *http.Request) {
 		"CREATE TABLE _themes (id SERIAL PRIMARY KEY, theme_name VARCHAR(255), dark_theme JSONB, light_theme JSONB, is_default BOOLEAN);",
 		"CREATE TABLE _tables (id SERIAL PRIMARY KEY, tables_data JSONB);",
 		"CREATE TABLE _views (id SERIAL PRIMARY KEY, views_data JSONB);",
-		"CREATE TABLE _workflows (id SERIAL PRIMARY KEY, nodes JSONB, edges JSONB, flow_data JSONB, name VARCHAR(255));",
 		"CREATE TABLE _triggers (id SERIAL PRIMARY KEY, triggers_data JSONB);",
+		"CREATE TABLE _workflows (id SERIAL PRIMARY KEY, nodes JSONB, edges JSONB, flow_data JSONB, name VARCHAR(255));",
+		"CREATE TABLE _groups (id SERIAL PRIMARY KEY, name VARCHAR(255), is_admin BOOLEAN, description TEXT, member_count INT)",
+		"CREATE TABLE _queries (id SERIAL PRIMARY KEY, query_data JSONB)",
 	}
 
 	dataQueries := []string{
