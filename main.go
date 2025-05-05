@@ -20,6 +20,7 @@ import (
 	"lowcode.com/backend/tables"
 	"lowcode.com/backend/triggers"
 	"lowcode.com/backend/views"
+	"lowcode.com/backend/workflow"
 )
 
 // Utility: Validate PostgreSQL identifiers
@@ -111,7 +112,7 @@ func createDatabaseHandler(w http.ResponseWriter, r *http.Request) {
 		"CREATE TABLE _tables (id SERIAL PRIMARY KEY, tables_data JSONB);",
 		"CREATE TABLE _views (id SERIAL PRIMARY KEY, views_data JSONB);",
 		"CREATE TABLE _triggers (id SERIAL PRIMARY KEY, triggers_data JSONB);",
-		"CREATE TABLE _workflows (id SERIAL PRIMARY KEY, nodes JSONB, edges JSONB, flow_data JSONB, name VARCHAR(255));",
+		"CREATE TABLE _workflows (id SERIAL PRIMARY KEY, fid VARCHAR(255),nodes JSONB, edges JSONB, flow_data JSONB, name VARCHAR(255));",
 		"CREATE TABLE _groups (id SERIAL PRIMARY KEY, name VARCHAR(255), is_admin BOOLEAN, description TEXT, member_count INT)",
 		"CREATE TABLE _queries (id SERIAL PRIMARY KEY, query_data JSONB)",
 	}
@@ -253,6 +254,7 @@ func main() {
 	mux.Handle("/api/views/{app_id}", registerwithDB(views.ViewHandler))
 	mux.Handle("/api/triggers/{app_id}", registerwithDB(triggers.TriggerHandler))
 	mux.Handle("/api/sql/{app_id}", registerwithDB(views.RawQueryHandler))
+	mux.Handle("api/workflow/{app_id}/{workflow_id}", http.HandlerFunc(workflow.HandleWorkflowHandler))
 	mux.Handle(
 		"/api/{app_id}/{schema}/{table_name}",
 		registerwithDB(http.HandlerFunc(appcrud.HandleDatabaseRequest)),
