@@ -10,7 +10,7 @@ import (
 
 // Common errors
 var (
-	ErrBlockNotFound    = errors.New("block not found")
+	ErrBlockNotFound2   = errors.New("block not found")
 	ErrInvalidBlockType = errors.New("invalid block type")
 	ErrExecutionTimeout = errors.New("workflow execution timeout")
 	ErrMaxIterations    = errors.New("maximum iterations exceeded")
