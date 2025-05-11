@@ -1,6 +1,7 @@
 package workflowengine
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -17,7 +18,7 @@ var (
 
 // Sample block functions for demonstration
 // AddBlock adds two numbers from the input
-func AddBlock(input, output map[string]interface{}) error {
+func AddBlock(ctx context.Context, dbconfigs, input, schema, output map[string]interface{}) error {
 	// Copy input to output (only when needed)
 	for k, v := range input {
 		output[k] = v
@@ -51,7 +52,7 @@ func AddBlock(input, output map[string]interface{}) error {
 }
 
 // StringTransformBlock transforms strings in the input
-func StringTransformBlock(input, output map[string]interface{}) error {
+func StringTransformBlock(ctx context.Context, dbconfigs, input, schema, output map[string]interface{}) error {
 	// Copy input to output (only when needed)
 	for k, v := range input {
 		output[k] = v

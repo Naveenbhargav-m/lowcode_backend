@@ -88,13 +88,13 @@ func HandleDatabaseRequest(w http.ResponseWriter, r *http.Request) {
 	// Process request based on HTTP method
 	switch r.Method {
 	case http.MethodGet:
-		result, err = handleRead(r.Context(), db, schema, table, params)
+		result, err = HandleRead(r.Context(), db, schema, table, params)
 	case http.MethodPost:
 		result, err = handleCreate(r.Context(), db, schema, table, r)
 	case http.MethodPut:
 		result, err = handleUpdate(r.Context(), db, schema, table, r, params)
 	case http.MethodDelete:
-		result, err = handleDelete(r.Context(), db, schema, table, params)
+		result, err = HandleDelete(r.Context(), db, schema, table, params)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -123,6 +123,312 @@ func HandleDatabaseRequest(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error encoding response: %v", err)
 		http.Error(w, "Error encoding response", http.StatusInternalServerError)
 	}
+}
+
+// handleCreate processes POST requests to insert new records
+func handleCreate(ctx context.Context, db *pgxpool.Pool, schema, table string, r *http.Request) (interface{}, error) {
+	// Read request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading request body: %w", err)
+	}
+
+	// Determine if we're dealing with a single object or an array
+	var data interface{}
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %w", err)
+	}
+	return InsertRecords(ctx, db, schema, table, data)
+	// Handle both single object and array of objects
+}
+
+func handleUpdate(
+	ctx context.Context,
+	db *pgxpool.Pool,
+	schema, table string,
+	r *http.Request,
+	params QueryParams,
+) (interface{}, error) {
+	// Read request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading request body: %w", err)
+	}
+
+	// Parse the update data
+	var updateData map[string]interface{}
+	if err := json.Unmarshal(body, &updateData); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %w", err)
+	}
+	return HandleUpdateRecords(ctx, db, table, schema, updateData, params)
+}
+
+// handleRead processes GET requests to retrieve data
+func HandleRead(ctx context.Context, db *pgxpool.Pool, schema, table string, params QueryParams) (interface{}, error) {
+	query, args := buildSelectQuery(schema, table, params)
+
+	log.Printf("Executing query: %s with args: %v", query, args)
+
+	rows, err := db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("error executing query: %w", err)
+	}
+	defer rows.Close()
+
+	// Parse the rows into a slice of maps
+	result := make([]map[string]interface{}, 0)
+
+	// Get column descriptions
+	fieldDescriptions := rows.FieldDescriptions()
+	columnNames := make([]string, len(fieldDescriptions))
+	for i, fd := range fieldDescriptions {
+		columnNames[i] = string(fd.Name)
+	}
+
+	// Iterate through the rows
+	for rows.Next() {
+		values := make([]interface{}, len(columnNames))
+		valuePtrs := make([]interface{}, len(columnNames))
+
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+
+		row := make(map[string]interface{})
+		for i, colName := range columnNames {
+			row[colName] = values[i]
+		}
+
+		result = append(result, row)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	// If we have a limit=1, return a single object instead of an array with one element
+	if params.Limit == 1 && len(result) == 1 {
+		return result[0], nil
+	}
+
+	return result, nil
+}
+
+func InsertRecords(ctx context.Context, db *pgxpool.Pool, schema, table string, data interface{}) (interface{}, error) {
+	switch v := data.(type) {
+	case map[string]interface{}:
+		// Single object
+		return InsertRecord(ctx, db, schema, table, v)
+	case []interface{}:
+		// Array of objects
+		records := make([]map[string]interface{}, 0, len(v))
+		for _, item := range v {
+			if record, ok := item.(map[string]interface{}); ok {
+				result, err := InsertRecord(ctx, db, schema, table, record)
+				if err != nil {
+					return nil, err
+				}
+				if resultMap, ok := result.(map[string]interface{}); ok {
+					records = append(records, resultMap)
+				}
+			} else {
+				return nil, fmt.Errorf("invalid item in array: %v", item)
+			}
+		}
+		return records, nil
+	default:
+		return nil, fmt.Errorf("invalid JSON data format")
+	}
+}
+
+// insertRecord inserts a single record into the database
+func InsertRecord(
+	ctx context.Context,
+	db *pgxpool.Pool,
+	schema, table string,
+	record map[string]interface{},
+) (interface{}, error) {
+	// Extract column names and values
+	columns := make([]string, 0, len(record))
+	values := make([]interface{}, 0, len(record))
+	placeholders := make([]string, 0, len(record))
+
+	i := 1
+	for col, val := range record {
+		// Skip null values
+		if val == nil {
+			continue
+		}
+
+		// Validate column name to prevent SQL injection
+		if !isValidIdentifier(col) {
+			return nil, fmt.Errorf("invalid column name: %s", col)
+		}
+
+		columns = append(columns, col)
+		values = append(values, val)
+		placeholders = append(placeholders, fmt.Sprintf("$%d", i))
+		i++
+	}
+
+	// Build and execute query
+	query := fmt.Sprintf(
+		"INSERT INTO \"%s\".\"%s\" (\"%s\") VALUES (%s) RETURNING *",
+		schema, table, strings.Join(columns, "\", \""), strings.Join(placeholders, ", "),
+	)
+
+	log.Printf("Executing query: %s with values: %v", query, values)
+
+	row, err := db.Query(ctx, query, values...)
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+	}
+	// Parse the returned row into a map
+	fieldDescriptions := row.FieldDescriptions()
+	returnedColumns := make([]string, len(fieldDescriptions))
+	returnedValues := make([]interface{}, len(fieldDescriptions))
+	returnedValuePtrs := make([]interface{}, len(fieldDescriptions))
+
+	for i, fd := range fieldDescriptions {
+		returnedColumns[i] = string(fd.Name)
+		returnedValuePtrs[i] = &returnedValues[i]
+	}
+
+	if err := row.Scan(returnedValuePtrs...); err != nil {
+		return nil, fmt.Errorf("error scanning inserted row: %w", err)
+	}
+
+	result := make(map[string]interface{})
+	for i, colName := range returnedColumns {
+		result[colName] = returnedValues[i]
+	}
+
+	return result, nil
+}
+
+// handleUpdate processes PUT requests to update existing records
+
+func HandleUpdateRecords(ctx context.Context, db *pgxpool.Pool,
+	table, schema string, updateData map[string]interface{}, params QueryParams) (interface{}, error) {
+	// Build update query
+	query, args := buildUpdateQuery(schema, table, updateData, params)
+
+	log.Printf("Executing query: %s with args: %v", query, args)
+
+	// Execute the update
+	rows, err := db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("error executing update: %w", err)
+	}
+	defer rows.Close()
+
+	// Parse the returned rows into a slice of maps
+	result := make([]map[string]interface{}, 0)
+
+	// Get column descriptions
+	fieldDescriptions := rows.FieldDescriptions()
+	columnNames := make([]string, len(fieldDescriptions))
+	for i, fd := range fieldDescriptions {
+		columnNames[i] = string(fd.Name)
+	}
+
+	// Iterate through the rows
+	for rows.Next() {
+		values := make([]interface{}, len(columnNames))
+		valuePtrs := make([]interface{}, len(columnNames))
+
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+
+		row := make(map[string]interface{})
+		for i, colName := range columnNames {
+			row[colName] = values[i]
+		}
+
+		result = append(result, row)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	// If no rows were updated, return an error
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no records found matching the filter criteria")
+	}
+
+	return result, nil
+}
+
+// handleDelete processes DELETE requests to remove records
+func HandleDelete(
+	ctx context.Context,
+	db *pgxpool.Pool,
+	schema, table string,
+	params QueryParams,
+) (interface{}, error) {
+	// Build delete query
+	query, args := buildDeleteQuery(schema, table, params)
+
+	log.Printf("Executing query: %s with args: %v", query, args)
+
+	// Execute the delete
+	rows, err := db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("error executing delete: %w", err)
+	}
+	defer rows.Close()
+
+	// Parse the returned rows into a slice of maps
+	result := make([]map[string]interface{}, 0)
+
+	// Get column descriptions
+	fieldDescriptions := rows.FieldDescriptions()
+	columnNames := make([]string, len(fieldDescriptions))
+	for i, fd := range fieldDescriptions {
+		columnNames[i] = string(fd.Name)
+	}
+
+	// Iterate through the rows
+	for rows.Next() {
+		values := make([]interface{}, len(columnNames))
+		valuePtrs := make([]interface{}, len(columnNames))
+
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+
+		row := make(map[string]interface{})
+		for i, colName := range columnNames {
+			row[colName] = values[i]
+		}
+
+		result = append(result, row)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	// If no rows were deleted, return an error
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no records found matching the filter criteria")
+	}
+
+	return result, nil
 }
 
 // parseQueryParams parses URL query parameters into QueryParams structure
@@ -535,304 +841,6 @@ func parseCondition(condStr string) (Condition, error) {
 		Operator: operator,
 		Value:    value,
 	}, nil
-}
-
-// handleRead processes GET requests to retrieve data
-func handleRead(ctx context.Context, db *pgxpool.Pool, schema, table string, params QueryParams) (interface{}, error) {
-	query, args := buildSelectQuery(schema, table, params)
-
-	log.Printf("Executing query: %s with args: %v", query, args)
-
-	rows, err := db.Query(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("error executing query: %w", err)
-	}
-	defer rows.Close()
-
-	// Parse the rows into a slice of maps
-	result := make([]map[string]interface{}, 0)
-
-	// Get column descriptions
-	fieldDescriptions := rows.FieldDescriptions()
-	columnNames := make([]string, len(fieldDescriptions))
-	for i, fd := range fieldDescriptions {
-		columnNames[i] = string(fd.Name)
-	}
-
-	// Iterate through the rows
-	for rows.Next() {
-		values := make([]interface{}, len(columnNames))
-		valuePtrs := make([]interface{}, len(columnNames))
-
-		for i := range values {
-			valuePtrs[i] = &values[i]
-		}
-
-		if err := rows.Scan(valuePtrs...); err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
-		}
-
-		row := make(map[string]interface{})
-		for i, colName := range columnNames {
-			row[colName] = values[i]
-		}
-
-		result = append(result, row)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating rows: %w", err)
-	}
-
-	// If we have a limit=1, return a single object instead of an array with one element
-	if params.Limit == 1 && len(result) == 1 {
-		return result[0], nil
-	}
-
-	return result, nil
-}
-
-// handleCreate processes POST requests to insert new records
-func handleCreate(ctx context.Context, db *pgxpool.Pool, schema, table string, r *http.Request) (interface{}, error) {
-	// Read request body
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading request body: %w", err)
-	}
-
-	// Determine if we're dealing with a single object or an array
-	var data interface{}
-	if err := json.Unmarshal(body, &data); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %w", err)
-	}
-
-	// Handle both single object and array of objects
-	switch v := data.(type) {
-	case map[string]interface{}:
-		// Single object
-		return insertRecord(ctx, db, schema, table, v)
-	case []interface{}:
-		// Array of objects
-		records := make([]map[string]interface{}, 0, len(v))
-		for _, item := range v {
-			if record, ok := item.(map[string]interface{}); ok {
-				result, err := insertRecord(ctx, db, schema, table, record)
-				if err != nil {
-					return nil, err
-				}
-				if resultMap, ok := result.(map[string]interface{}); ok {
-					records = append(records, resultMap)
-				}
-			} else {
-				return nil, fmt.Errorf("invalid item in array: %v", item)
-			}
-		}
-		return records, nil
-	default:
-		return nil, fmt.Errorf("invalid JSON data format")
-	}
-}
-
-// insertRecord inserts a single record into the database
-func insertRecord(
-	ctx context.Context,
-	db *pgxpool.Pool,
-	schema, table string,
-	record map[string]interface{},
-) (interface{}, error) {
-	// Extract column names and values
-	columns := make([]string, 0, len(record))
-	values := make([]interface{}, 0, len(record))
-	placeholders := make([]string, 0, len(record))
-
-	i := 1
-	for col, val := range record {
-		// Skip null values
-		if val == nil {
-			continue
-		}
-
-		// Validate column name to prevent SQL injection
-		if !isValidIdentifier(col) {
-			return nil, fmt.Errorf("invalid column name: %s", col)
-		}
-
-		columns = append(columns, col)
-		values = append(values, val)
-		placeholders = append(placeholders, fmt.Sprintf("$%d", i))
-		i++
-	}
-
-	// Build and execute query
-	query := fmt.Sprintf(
-		"INSERT INTO \"%s\".\"%s\" (\"%s\") VALUES (%s) RETURNING *",
-		schema, table, strings.Join(columns, "\", \""), strings.Join(placeholders, ", "),
-	)
-
-	log.Printf("Executing query: %s with values: %v", query, values)
-
-	row, err := db.Query(ctx, query, values...)
-	if err != nil {
-		fmt.Printf("error: %v\n", err)
-	}
-	// Parse the returned row into a map
-	fieldDescriptions := row.FieldDescriptions()
-	returnedColumns := make([]string, len(fieldDescriptions))
-	returnedValues := make([]interface{}, len(fieldDescriptions))
-	returnedValuePtrs := make([]interface{}, len(fieldDescriptions))
-
-	for i, fd := range fieldDescriptions {
-		returnedColumns[i] = string(fd.Name)
-		returnedValuePtrs[i] = &returnedValues[i]
-	}
-
-	if err := row.Scan(returnedValuePtrs...); err != nil {
-		return nil, fmt.Errorf("error scanning inserted row: %w", err)
-	}
-
-	result := make(map[string]interface{})
-	for i, colName := range returnedColumns {
-		result[colName] = returnedValues[i]
-	}
-
-	return result, nil
-}
-
-// handleUpdate processes PUT requests to update existing records
-func handleUpdate(
-	ctx context.Context,
-	db *pgxpool.Pool,
-	schema, table string,
-	r *http.Request,
-	params QueryParams,
-) (interface{}, error) {
-	// Read request body
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading request body: %w", err)
-	}
-
-	// Parse the update data
-	var updateData map[string]interface{}
-	if err := json.Unmarshal(body, &updateData); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %w", err)
-	}
-
-	// Build update query
-	query, args := buildUpdateQuery(schema, table, updateData, params)
-
-	log.Printf("Executing query: %s with args: %v", query, args)
-
-	// Execute the update
-	rows, err := db.Query(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("error executing update: %w", err)
-	}
-	defer rows.Close()
-
-	// Parse the returned rows into a slice of maps
-	result := make([]map[string]interface{}, 0)
-
-	// Get column descriptions
-	fieldDescriptions := rows.FieldDescriptions()
-	columnNames := make([]string, len(fieldDescriptions))
-	for i, fd := range fieldDescriptions {
-		columnNames[i] = string(fd.Name)
-	}
-
-	// Iterate through the rows
-	for rows.Next() {
-		values := make([]interface{}, len(columnNames))
-		valuePtrs := make([]interface{}, len(columnNames))
-
-		for i := range values {
-			valuePtrs[i] = &values[i]
-		}
-
-		if err := rows.Scan(valuePtrs...); err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
-		}
-
-		row := make(map[string]interface{})
-		for i, colName := range columnNames {
-			row[colName] = values[i]
-		}
-
-		result = append(result, row)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating rows: %w", err)
-	}
-
-	// If no rows were updated, return an error
-	if len(result) == 0 {
-		return nil, fmt.Errorf("no records found matching the filter criteria")
-	}
-
-	return result, nil
-}
-
-// handleDelete processes DELETE requests to remove records
-func handleDelete(
-	ctx context.Context,
-	db *pgxpool.Pool,
-	schema, table string,
-	params QueryParams,
-) (interface{}, error) {
-	// Build delete query
-	query, args := buildDeleteQuery(schema, table, params)
-
-	log.Printf("Executing query: %s with args: %v", query, args)
-
-	// Execute the delete
-	rows, err := db.Query(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("error executing delete: %w", err)
-	}
-	defer rows.Close()
-
-	// Parse the returned rows into a slice of maps
-	result := make([]map[string]interface{}, 0)
-
-	// Get column descriptions
-	fieldDescriptions := rows.FieldDescriptions()
-	columnNames := make([]string, len(fieldDescriptions))
-	for i, fd := range fieldDescriptions {
-		columnNames[i] = string(fd.Name)
-	}
-
-	// Iterate through the rows
-	for rows.Next() {
-		values := make([]interface{}, len(columnNames))
-		valuePtrs := make([]interface{}, len(columnNames))
-
-		for i := range values {
-			valuePtrs[i] = &values[i]
-		}
-
-		if err := rows.Scan(valuePtrs...); err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
-		}
-
-		row := make(map[string]interface{})
-		for i, colName := range columnNames {
-			row[colName] = values[i]
-		}
-
-		result = append(result, row)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating rows: %w", err)
-	}
-
-	// If no rows were deleted, return an error
-	if len(result) == 0 {
-		return nil, fmt.Errorf("no records found matching the filter criteria")
-	}
-
-	return result, nil
 }
 
 // buildSelectQuery builds a SELECT query with the given parameters
