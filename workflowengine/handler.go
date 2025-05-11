@@ -1,10 +1,13 @@
 package workflowengine
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func WorkflowHandler(w http.ResponseWriter, r *http.Request) {
@@ -13,8 +16,15 @@ func WorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	// 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	// 	return
 	// }
-
-	Usage()
+	temp := r.Context().Value("db_conn")
+	db, ok := temp.(*pgxpool.Pool)
+	if !ok {
+		http.Error(w, "Database connection not found in context", http.StatusInternalServerError)
+		return
+	}
+	dbname := r.Context().Value("db_name")
+	dbnamestr, _ := dbname.(string)
+	Usage(r.Context(), db, dbnamestr)
 	// Parse the JSON from the request body
 	var workflowRequest struct {
 		Schema string                 `json:"schema"`
@@ -27,12 +37,12 @@ func WorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create a new workflow engine
-	engine := NewEngine()
+	engine := NewEngine(r.Context(), db, dbnamestr)
 
 	// Register default blocks
 	engine.RegisterBlock("add", AddBlock)
 	engine.RegisterBlock("stringTransform", StringTransformBlock)
-	engine.RegisterBlock("noop", func(input map[string]interface{}, output map[string]interface{}) error {
+	engine.RegisterBlock("noop", func(ctx context.Context, dbconfigs, input map[string]interface{}, schema, output map[string]interface{}) error {
 		return nil
 	})
 

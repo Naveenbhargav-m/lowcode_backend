@@ -4,7 +4,10 @@ go 1.23.3
 
 require github.com/jackc/pgx/v5 v5.7.1
 
-require github.com/pkg/errors v0.9.1 // indirect
+require (
+	github.com/pkg/errors v0.9.1 // indirect
+	rogchap.com/v8go v0.9.0 // indirect
+)
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect

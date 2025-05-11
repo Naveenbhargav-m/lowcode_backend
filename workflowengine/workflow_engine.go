@@ -5,22 +5,26 @@ package workflowengine
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // BlockFunc defines the signature for a block function
-type BlockFunc func(input, output map[string]interface{}) error
+type BlockFunc func(ctx context.Context, dbconfigs, input, schema, output map[string]interface{}) error
 
 // Block represents a processing unit in the workflow
 type Block struct {
-	Name       string   `json:"name"`
-	Handler    string   `json:"handler"`
-	InputMap   []string `json:"inputMap,omitempty"`   // Optional: maps from global state to block input
-	OutputMap  []string `json:"outputMap,omitempty"`  // Optional: maps from block output to global state
-	NextBlocks []string `json:"nextBlocks,omitempty"` // Optional: for conditional flows
+	Name        string                 `json:"name"`
+	Handler     string                 `json:"handler"`
+	BlockConfig map[string]interface{} `json:"blockConfig"`
+	InputMap    []string               `json:"inputMap,omitempty"`   // Optional: maps from global state to block input
+	OutputMap   []string               `json:"outputMap,omitempty"`  // Optional: maps from block output to global state
+	NextBlocks  []string               `json:"nextBlocks,omitempty"` // Optional: for conditional flows
 }
 
 // WorkflowSchema defines the structure of the workflow
@@ -38,14 +42,22 @@ type Engine struct {
 	// Pre-allocate these maps for reuse
 	blockInput  map[string]interface{}
 	blockOutput map[string]interface{}
+	schemaData  map[string]interface{}
+	ctx         context.Context
+	db          *pgxpool.Pool
+	dbname      string
 }
 
 // NewEngine creates a new workflow engine
-func NewEngine() *Engine {
+func NewEngine(ctx context.Context, db *pgxpool.Pool, dbname string) *Engine {
 	return &Engine{
 		registry:    make(map[string]BlockFunc),
 		blockInput:  make(map[string]interface{}),
 		blockOutput: make(map[string]interface{}),
+		schemaData:  make(map[string]interface{}),
+		ctx:         ctx,
+		db:          db,
+		dbname:      dbname,
 	}
 }
 
@@ -72,6 +84,11 @@ func (e *Engine) getHandler(name string) (BlockFunc, error) {
 func (e *Engine) Execute(schema *WorkflowSchema, input map[string]interface{}) (map[string]interface{}, error) {
 	if schema == nil {
 		return nil, errors.New("workflow schema is nil")
+	}
+
+	configs := map[string]interface{}{
+		"db":      e.db,
+		"db_name": e.dbname,
 	}
 
 	// Initialize global state with input
@@ -102,6 +119,7 @@ func (e *Engine) Execute(schema *WorkflowSchema, input map[string]interface{}) (
 		// Clear maps for reuse instead of allocating new ones
 		clearMap(e.blockInput)
 		clearMap(e.blockOutput)
+		clearMap(e.schemaData)
 
 		// Create input for the block from global state using inputMap
 		if len(currentBlock.InputMap) > 0 {
@@ -118,7 +136,12 @@ func (e *Engine) Execute(schema *WorkflowSchema, input map[string]interface{}) (
 		}
 
 		// Execute the block
-		if err := handler(e.blockInput, e.blockOutput); err != nil {
+		e.schemaData = map[string]interface{}{
+			"schema":             schema,
+			"current_block_name": currentBlockName,
+			"current_block":      currentBlock,
+		}
+		if err := handler(e.ctx, configs, e.blockInput, e.schemaData, e.blockOutput); err != nil {
 			return nil, fmt.Errorf("error executing block %s: %w", currentBlock.Name, err)
 		}
 

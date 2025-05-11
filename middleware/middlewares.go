@@ -41,6 +41,7 @@ func DBInjectionMiddleware(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), "db_conn", pool)
+		ctx = context.WithValue(ctx, "db_name", appID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

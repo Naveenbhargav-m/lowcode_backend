@@ -254,10 +254,10 @@ func main() {
 	mux.Handle("/api/views/{app_id}", registerwithDB(views.ViewHandler))
 	mux.Handle("/api/triggers/{app_id}", registerwithDB(triggers.TriggerHandler))
 	mux.Handle("/api/sql/{app_id}", registerwithDB(views.RawQueryHandler))
-	mux.Handle("/api/workflow/{app_id}/{workflow_id}", http.HandlerFunc(workflowengine.WorkflowHandler))
+	mux.Handle("/api/workflow/{app_id}/{workflow_id}", registerwithDB(workflowengine.WorkflowHandler))
 	mux.Handle(
 		"/api/{app_id}/{schema}/{table_name}",
-		registerwithDB(http.HandlerFunc(appcrud.HandleDatabaseRequest)),
+		registerwithDB(appcrud.HandleDatabaseRequest),
 	)
 	// dbmux := middleware.DBInjectionMiddleware(mux)
 	newmux := middleware.CorsMiddleware(mux)
