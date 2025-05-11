@@ -1,4 +1,29 @@
+# IDE/editor settings
 .vscode/
-LICENSE
-prestd.toml
+.idea/
+*.swp
+
+# Go build output
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go module/package files
+vendor/
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Debug files
+__debug*
+
+# Binary output (optional - name your binary here if applicable)
 prestd
+
+# Configs (optional)
+prestd.toml
