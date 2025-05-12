@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/jackc/pgx/v5"
@@ -41,24 +42,83 @@ type Condition struct {
 	Field    string      // Field name
 	Operator string      // Comparison operator (=, >, <, !=, etc.)
 	Value    interface{} // Value to compare against
+	IsNested bool        // Flag to indicate if this is a nested condition
+	Nested   *Filter     // Pointer to a nested filter (if IsNested is true)
 }
 
-// OrderByClause represents an order by directive
+// OrderByClause represents an order by instruction
 type OrderByClause struct {
-	Field     string // Field name
+	Field     string
 	Direction string // ASC or DESC
 }
 
 // AggregationClause represents an aggregation function
 type AggregationClause struct {
-	Function string // Aggregation function (SUM, AVG, COUNT, etc.)
-	Field    string // Field to aggregate
-	Alias    string // Result alias
+	Function string
+	Field    string
+	Alias    string
 }
 
 // HandleDatabaseRequest is the main handler for dynamic database operations
+//
+// // Database API Endpoints
+//
+// Base URL pattern: /{schema}/{table_name}
+//
+// Supported methods:
+//   - GET: Retrieve records
+//   - POST: Create new records
+//   - PUT/PATCH: Update existing records
+//   - DELETE: Remove records
+//
+// Query Parameters:
+//
+//   - select: Specifies fields to return
+//     Format: ?select=field1,field2,alias:field3,COUNT(field):count_alias
+//     Example: ?select=id,name,total:price*quantity,COUNT(id):count
+//
+//   - where: Filters results with conditions
+//     Format: ?where=field=value,field2!=value2
+//     Complex format: ?where=[condition1.and.condition2.or.condition3]
+//     Operators: =, !=, >, <, >=, <=, LIKE, IN
+//     Example: ?where=age>=18,status=active
+//     Example: ?where=[name=John.and.age>30]
+//     Example: ?where=[status=active.or.[age>30.and.role=admin]]
+//     Example: ?where=field1=value1,field2!=value2
+//     Example: ?where=age>20.and.name=John
+//     Example: ?where=[status=active.or.status=pending]
+//     Example: ?where=[created_at>2023-01-01.and.[status=active.or.priority>3]]
+//
+//   - order_by: Sorts results
+//     Format: ?order_by=field1,-field2
+//     Prefix with - for descending order
+//     Example: ?order_by=created_at,-priority
+//
+//   - limit: Restricts number of returned records
+//     Format: ?limit=N
+//     Example: ?limit=100
+//
+//   - offset: Skips N records
+//     Format: ?offset=N
+//     Example: ?offset=50
+//
+//   - group_by: Groups results
+//     Format: ?group_by=field1,field2
+//     Example: ?group_by=department,status
+//
+//   - having: Filters grouped results
+//     Format: ?having=COUNT(id)>10,SUM(amount)<1000
+//     Example: ?having=COUNT(id)>5
+//
+//   - join: Joins related tables
+//     Format: ?join=table:condition,table2:condition2
+//     Example: ?join=orders:orders.user_id=users.id
+//
+// Combined Example:
+// GET /public/users?select=id,name,email&where=status=active,age>=21&order_by=-created_at&limit=10&offset=0
 func HandleDatabaseRequest(w http.ResponseWriter, r *http.Request) {
 	// Get database connection from context (set by middleware)
+	startime := time.Now()
 	temp := r.Context().Value("db_conn")
 	db, ok := temp.(*pgxpool.Pool)
 	if !ok {
@@ -77,7 +137,9 @@ func HandleDatabaseRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse query parameters for filtering, field selection, etc.
+	parsetime := time.Now()
 	params, err := parseQueryParams(r)
+	fmt.Printf("time taken to parsequeryParams: %v \n", time.Since(parsetime))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error parsing query parameters: %v", err), http.StatusBadRequest)
 		return
@@ -91,7 +153,7 @@ func HandleDatabaseRequest(w http.ResponseWriter, r *http.Request) {
 		result, err = HandleRead(r.Context(), db, schema, table, params)
 	case http.MethodPost:
 		result, err = handleCreate(r.Context(), db, schema, table, r)
-	case http.MethodPut:
+	case http.MethodPut, http.MethodPatch:
 		result, err = handleUpdate(r.Context(), db, schema, table, r, params)
 	case http.MethodDelete:
 		result, err = HandleDelete(r.Context(), db, schema, table, params)
@@ -114,6 +176,7 @@ func HandleDatabaseRequest(w http.ResponseWriter, r *http.Request) {
 		}
 
 		http.Error(w, fmt.Sprintf("Error: %v", err), statusCode)
+		fmt.Printf("total time for request:%v\n", time.Since(startime))
 		return
 	}
 
@@ -123,6 +186,7 @@ func HandleDatabaseRequest(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error encoding response: %v", err)
 		http.Error(w, "Error encoding response", http.StatusInternalServerError)
 	}
+	fmt.Printf("total time for request:%v\n", time.Since(startime))
 }
 
 // handleCreate processes POST requests to insert new records
@@ -315,8 +379,9 @@ func InsertRecord(
 func HandleUpdateRecords(ctx context.Context, db *pgxpool.Pool,
 	table, schema string, updateData map[string]interface{}, params QueryParams) (interface{}, error) {
 	// Build update query
+	buidtime := time.Now()
 	query, args := buildUpdateQuery(schema, table, updateData, params)
-
+	fmt.Printf("time taken to build the update query:%v\n", time.Since(buidtime))
 	log.Printf("Executing query: %s with args: %v", query, args)
 
 	// Execute the update
@@ -431,62 +496,42 @@ func HandleDelete(
 	return result, nil
 }
 
-// parseQueryParams parses URL query parameters into QueryParams structure
+// Pre-compile all regular expressions
+var (
+	aggregationRegex = regexp.MustCompile(`(\w+)\(([^)]+)\)`)
+	jsonFieldRegex   = regexp.MustCompile(`^([\w_]+->>'?[\w_]+'?)(=|!=|>=|<=|>|<|LIKE|IN)(.*)$`)
+	nestedJsonRegex  = regexp.MustCompile(`^([\w_]+->'?[\w_]+'?->>'?[\w_]+'?)(=|!=|>=|<=|>|<|LIKE|IN)(.*)$`)
+	operatorRegex    = regexp.MustCompile(`^([\w_.]+)(=|!=|>=|<=|>|<|LIKE|IN)(.*)$`)
+	dateRegex        = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+)
+
 func parseQueryParams(r *http.Request) (QueryParams, error) {
+	query := r.URL.Query()
 	params := QueryParams{
-		Fields:       []string{},
-		Filters:      []Filter{},
-		Joins:        make(map[string]string),
-		OrderBy:      []OrderByClause{},
-		GroupBy:      []string{},
-		Having:       []string{},
+		Fields:       make([]string, 0, 8),    // Pre-allocate with reasonable capacity
+		Filters:      make([]Filter, 0, 4),    // Pre-allocate with reasonable capacity
+		Joins:        make(map[string]string), // Maps don't need capacity hints
+		OrderBy:      make([]OrderByClause, 0, 4),
+		GroupBy:      make([]string, 0, 4),
+		Having:       make([]string, 0, 4),
 		Aggregations: make(map[string]AggregationClause),
 	}
 
 	// Parse selected fields and aggregations
-	if selectParam := r.URL.Query().Get("select"); selectParam != "" {
-		fields := strings.Split(selectParam, ",")
-		for _, field := range fields {
-			field = strings.TrimSpace(field)
-
-			// Check if this is an aggregation with alias
-			if strings.Contains(field, ":") {
-				parts := strings.Split(field, ":")
-				fieldExpr := strings.TrimSpace(parts[0])
-				alias := strings.TrimSpace(parts[1])
-
-				// Check if this is an aggregation function
-				if matches := regexp.MustCompile(`(\w+)\(([^)]+)\)`).FindStringSubmatch(fieldExpr); len(matches) > 0 {
-					function := matches[1]
-					aggField := matches[2]
-					params.Aggregations[alias] = AggregationClause{
-						Function: function,
-						Field:    aggField,
-						Alias:    alias,
-					}
-				} else {
-					// Just a field with alias
-					params.Fields = append(params.Fields, fmt.Sprintf("%s AS %s", fieldExpr, alias))
-				}
-			} else if matches := regexp.MustCompile(`(\w+)\(([^)]+)\)`).FindStringSubmatch(field); len(matches) > 0 {
-				// Aggregation without alias
-				function := matches[1]
-				aggField := matches[2]
-				alias := strings.ToLower(function) + "_" + strings.ToLower(aggField)
-				params.Aggregations[alias] = AggregationClause{
-					Function: function,
-					Field:    aggField,
-					Alias:    alias,
-				}
-			} else {
-				// Regular field
-				params.Fields = append(params.Fields, field)
+	if selectParam := query.Get("select"); selectParam != "" {
+		// Fast path: If there are no commas, we can avoid the split
+		if !strings.Contains(selectParam, ",") {
+			parseSelectField(&params, selectParam)
+		} else {
+			fields := strings.Split(selectParam, ",")
+			for _, field := range fields {
+				parseSelectField(&params, strings.TrimSpace(field))
 			}
 		}
 	}
 
 	// Parse where conditions
-	if whereParam := r.URL.Query().Get("where"); whereParam != "" {
+	if whereParam := query.Get("where"); whereParam != "" {
 		filters, err := parseWhereClause(whereParam)
 		if err != nil {
 			return params, fmt.Errorf("invalid where clause: %v", err)
@@ -495,7 +540,7 @@ func parseQueryParams(r *http.Request) (QueryParams, error) {
 	}
 
 	// Parse order by
-	if orderParam := r.URL.Query().Get("order_by"); orderParam != "" {
+	if orderParam := query.Get("order_by"); orderParam != "" {
 		orderClauses := strings.Split(orderParam, ",")
 		for _, clause := range orderClauses {
 			clause = strings.TrimSpace(clause)
@@ -503,7 +548,7 @@ func parseQueryParams(r *http.Request) (QueryParams, error) {
 
 			if strings.HasPrefix(clause, "-") {
 				direction = "DESC"
-				clause = strings.TrimPrefix(clause, "-")
+				clause = clause[1:] // More efficient than TrimPrefix
 			}
 
 			params.OrderBy = append(params.OrderBy, OrderByClause{
@@ -514,7 +559,7 @@ func parseQueryParams(r *http.Request) (QueryParams, error) {
 	}
 
 	// Parse limit
-	if limitParam := r.URL.Query().Get("limit"); limitParam != "" {
+	if limitParam := query.Get("limit"); limitParam != "" {
 		limit, err := strconv.Atoi(limitParam)
 		if err != nil || limit < 0 {
 			return params, fmt.Errorf("invalid limit parameter: %v", limitParam)
@@ -523,7 +568,7 @@ func parseQueryParams(r *http.Request) (QueryParams, error) {
 	}
 
 	// Parse offset
-	if offsetParam := r.URL.Query().Get("offset"); offsetParam != "" {
+	if offsetParam := query.Get("offset"); offsetParam != "" {
 		offset, err := strconv.Atoi(offsetParam)
 		if err != nil || offset < 0 {
 			return params, fmt.Errorf("invalid offset parameter: %v", offsetParam)
@@ -532,7 +577,7 @@ func parseQueryParams(r *http.Request) (QueryParams, error) {
 	}
 
 	// Parse group by
-	if groupByParam := r.URL.Query().Get("group_by"); groupByParam != "" {
+	if groupByParam := query.Get("group_by"); groupByParam != "" {
 		groupFields := strings.Split(groupByParam, ",")
 		for _, field := range groupFields {
 			params.GroupBy = append(params.GroupBy, strings.TrimSpace(field))
@@ -540,7 +585,7 @@ func parseQueryParams(r *http.Request) (QueryParams, error) {
 	}
 
 	// Parse having clause
-	if havingParam := r.URL.Query().Get("having"); havingParam != "" {
+	if havingParam := query.Get("having"); havingParam != "" {
 		havingClauses := strings.Split(havingParam, ",")
 		for _, clause := range havingClauses {
 			params.Having = append(params.Having, strings.TrimSpace(clause))
@@ -548,13 +593,12 @@ func parseQueryParams(r *http.Request) (QueryParams, error) {
 	}
 
 	// Parse joins
-	if joinParam := r.URL.Query().Get("join"); joinParam != "" {
+	if joinParam := query.Get("join"); joinParam != "" {
 		joins := strings.Split(joinParam, ",")
 		for _, join := range joins {
-			parts := strings.Split(join, ":")
-			if len(parts) == 2 {
-				table := strings.TrimSpace(parts[0])
-				condition := strings.TrimSpace(parts[1])
+			if idx := strings.Index(join, ":"); idx != -1 {
+				table := strings.TrimSpace(join[:idx])
+				condition := strings.TrimSpace(join[idx+1:])
 				params.Joins[table] = condition
 			}
 		}
@@ -563,218 +607,263 @@ func parseQueryParams(r *http.Request) (QueryParams, error) {
 	return params, nil
 }
 
-// parseWhereClause parses complex where conditions with support for AND/OR logic
-func parseWhereClause(whereClause string) ([]Filter, error) {
-	var filters []Filter
+// parseSelectField processes a single field from the select parameter
+func parseSelectField(params *QueryParams, field string) {
+	// Check if this is an aggregation with alias
+	if idx := strings.Index(field, ":"); idx != -1 {
+		fieldExpr := strings.TrimSpace(field[:idx])
+		alias := strings.TrimSpace(field[idx+1:])
 
-	// Handle empty where clause
+		// Check if this is an aggregation function
+		if matches := aggregationRegex.FindStringSubmatch(fieldExpr); len(matches) > 0 {
+			function := matches[1]
+			aggField := matches[2]
+			params.Aggregations[alias] = AggregationClause{
+				Function: function,
+				Field:    aggField,
+				Alias:    alias,
+			}
+		} else {
+			// Just a field with alias
+			params.Fields = append(params.Fields, fmt.Sprintf("%s AS %s", fieldExpr, alias))
+		}
+	} else if matches := aggregationRegex.FindStringSubmatch(field); len(matches) > 0 {
+		// Aggregation without alias
+		function := matches[1]
+		aggField := matches[2]
+		alias := strings.ToLower(function) + "_" + strings.ToLower(aggField)
+		params.Aggregations[alias] = AggregationClause{
+			Function: function,
+			Field:    aggField,
+			Alias:    alias,
+		}
+	} else {
+		// Regular field
+		params.Fields = append(params.Fields, field)
+	}
+}
+
+// parseWhereClause parses complex where conditions with support for nested AND/OR logic
+func parseWhereClause(whereClause string) ([]Filter, error) {
 	whereClause = strings.TrimSpace(whereClause)
 	if whereClause == "" {
-		return filters, nil
+		return []Filter{}, nil
 	}
 
-	// First, check if the entire clause is wrapped in brackets
+	// Check if we're dealing with a complex bracketed expression
 	if strings.HasPrefix(whereClause, "[") && strings.HasSuffix(whereClause, "]") {
-		// Remove outermost brackets
-		innerContent := whereClause[1 : len(whereClause)-1]
-
-		// Try to parse as a complex expression with .or. at the top level
-		orFilters, err := parseComplexExpression(innerContent, ".or.")
+		// Strip the outer brackets and pass to complex expression parser
+		filter, err := parseComplexExpression(whereClause[1 : len(whereClause)-1])
 		if err != nil {
 			return nil, err
 		}
+		return []Filter{filter}, nil
+	}
 
-		if len(orFilters.Conditions) > 0 {
-			// We successfully parsed as an OR expression
-			filters = append(filters, orFilters)
-			return filters, nil
-		}
+	// Handle simpler comma-separated conditions as AND clause
+	if strings.Contains(whereClause, ",") {
+		parts := strings.Split(whereClause, ",")
+		conditions := make([]Condition, 0, len(parts))
 
-		// Try to parse as a complex expression with .and. at the top level
-		andFilters, err := parseComplexExpression(innerContent, ".and.")
-		if err != nil {
-			return nil, err
-		}
-
-		if len(andFilters.Conditions) > 0 {
-			// We successfully parsed as an AND expression
-			filters = append(filters, andFilters)
-			return filters, nil
-		}
-
-		// If it's not a complex expression, try to parse as a single condition
-		condition, err := parseCondition(innerContent)
-		if err != nil {
-			return nil, err
-		}
-
-		filter := Filter{
-			Operator:   "AND", // Default operator
-			Conditions: []Condition{condition},
-		}
-		filters = append(filters, filter)
-	} else {
-		// Split by comma for top-level AND conditions if not enclosed in brackets
-		andGroups := strings.Split(whereClause, ",")
-
-		for _, andGroup := range andGroups {
-			andGroup = strings.TrimSpace(andGroup)
-
-			// Skip empty groups
-			if andGroup == "" {
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			if part == "" {
 				continue
 			}
 
-			// Parse the AND group
-			condition, err := parseCondition(andGroup)
+			condition, err := parseCondition(part)
 			if err != nil {
 				return nil, err
 			}
-
-			filter := Filter{
-				Operator:   "AND",
-				Conditions: []Condition{condition},
-			}
-
-			filters = append(filters, filter)
+			conditions = append(conditions, condition)
 		}
+
+		return []Filter{{Operator: "AND", Conditions: conditions}}, nil
 	}
 
-	return filters, nil
+	// Check for logical operators (.and. or .or.) in a non-bracketed expression
+	if strings.Contains(whereClause, ".and.") || strings.Contains(whereClause, ".or.") {
+		filter, err := parseComplexExpression(whereClause)
+		if err != nil {
+			return nil, err
+		}
+		return []Filter{filter}, nil
+	}
+
+	// Single condition
+	condition, err := parseCondition(whereClause)
+	if err != nil {
+		return nil, err
+	}
+
+	return []Filter{{Operator: "AND", Conditions: []Condition{condition}}}, nil
 }
 
-// parseComplexExpression parses an expression with the specified delimiter (.and. or .or.)
-// taking nested brackets into account
-func parseComplexExpression(expr string, delimiter string) (Filter, error) {
-	parts := tokenizeExpression(expr, delimiter)
+// parseComplexExpression parses a complex expression containing .and. and .or. operators
+func parseComplexExpression(expr string) (Filter, error) {
+	expr = strings.TrimSpace(expr)
 
-	// If there's only one part, it's not the expected type of expression
-	if len(parts) <= 1 {
-		return Filter{}, nil
-	}
+	// First check for OR operator at top level (higher precedence than AND)
+	if hasTopLevelOperator(expr, ".or.") {
+		parts := splitByOperator(expr, ".or.")
+		conditions := make([]Condition, 0, len(parts))
 
-	var operator string
-	if delimiter == ".and." {
-		operator = "AND"
-	} else {
-		operator = "OR"
-	}
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
 
-	filter := Filter{
-		Operator:   operator,
-		Conditions: []Condition{},
-	}
+			// Check if part is another complex expression
+			if strings.HasPrefix(part, "[") && strings.HasSuffix(part, "]") {
+				// Recursively parse nested expression
+				nestedFilter, err := parseComplexExpression(part[1 : len(part)-1])
+				if err != nil {
+					return Filter{}, err
+				}
 
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
+				// Add as nested condition
+				conditions = append(conditions, Condition{
+					IsNested: true,
+					Nested:   &nestedFilter,
+				})
+			} else if strings.Contains(part, ".and.") {
+				// Handle AND expressions
+				nestedFilter, err := parseComplexExpression(part)
+				if err != nil {
+					return Filter{}, err
+				}
 
-		// Skip empty parts
-		if part == "" {
-			continue
+				conditions = append(conditions, Condition{
+					IsNested: true,
+					Nested:   &nestedFilter,
+				})
+			} else {
+				// Simple condition
+				condition, err := parseCondition(part)
+				if err != nil {
+					return Filter{}, err
+				}
+				conditions = append(conditions, condition)
+			}
 		}
 
-		// Handle nested groups
-		if strings.HasPrefix(part, "[") && strings.HasSuffix(part, "]") {
-			// Recursively parse the nested group
-			nestedFilters, err := parseWhereClause(part)
-			if err != nil {
-				return Filter{}, err
-			}
-
-			// For each nested filter, add all its conditions
-			for _, nf := range nestedFilters {
-				for _, cond := range nf.Conditions {
-					filter.Conditions = append(filter.Conditions, cond)
-				}
-			}
-		} else if strings.Contains(part, ".and.") {
-			// This is an AND expression
-			andFilter, err := parseComplexExpression(part, ".and.")
-			if err != nil {
-				return Filter{}, err
-			}
-
-			if len(andFilter.Conditions) > 0 {
-				// Create a nested filter
-				nestedFilter := Filter{
-					Operator:   "AND",
-					Conditions: andFilter.Conditions,
-				}
-				// Add as a single combined condition
-				condition := Condition{
-					Field:    "_nested",
-					Operator: "AND",
-					Value:    nestedFilter,
-				}
-				filter.Conditions = append(filter.Conditions, condition)
-			}
-		} else if strings.Contains(part, ".or.") {
-			// This is an OR expression
-			orFilter, err := parseComplexExpression(part, ".or.")
-			if err != nil {
-				return Filter{}, err
-			}
-
-			if len(orFilter.Conditions) > 0 {
-				// Create a nested filter
-				nestedFilter := Filter{
-					Operator:   "OR",
-					Conditions: orFilter.Conditions,
-				}
-				// Add as a single combined condition
-				condition := Condition{
-					Field:    "_nested",
-					Operator: "OR",
-					Value:    nestedFilter,
-				}
-				filter.Conditions = append(filter.Conditions, condition)
-			}
-		} else {
-			// Parse as a simple condition
-			condition, err := parseCondition(part)
-			if err != nil {
-				return Filter{}, err
-			}
-			filter.Conditions = append(filter.Conditions, condition)
-		}
+		return Filter{Operator: "OR", Conditions: conditions}, nil
 	}
 
-	return filter, nil
+	// Then check for AND operator at top level
+	if hasTopLevelOperator(expr, ".and.") {
+		parts := splitByOperator(expr, ".and.")
+		conditions := make([]Condition, 0, len(parts))
+
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
+
+			// Check if part is another complex expression
+			if strings.HasPrefix(part, "[") && strings.HasSuffix(part, "]") {
+				// Recursively parse nested expression
+				nestedFilter, err := parseComplexExpression(part[1 : len(part)-1])
+				if err != nil {
+					return Filter{}, err
+				}
+
+				// Add as nested condition
+				conditions = append(conditions, Condition{
+					IsNested: true,
+					Nested:   &nestedFilter,
+				})
+			} else if strings.Contains(part, ".or.") {
+				// Handle OR expressions
+				nestedFilter, err := parseComplexExpression(part)
+				if err != nil {
+					return Filter{}, err
+				}
+
+				conditions = append(conditions, Condition{
+					IsNested: true,
+					Nested:   &nestedFilter,
+				})
+			} else {
+				// Simple condition
+				condition, err := parseCondition(part)
+				if err != nil {
+					return Filter{}, err
+				}
+				conditions = append(conditions, condition)
+			}
+		}
+
+		return Filter{Operator: "AND", Conditions: conditions}, nil
+	}
+
+	// Single condition
+	condition, err := parseCondition(expr)
+	if err != nil {
+		return Filter{}, err
+	}
+
+	return Filter{Operator: "AND", Conditions: []Condition{condition}}, nil
 }
 
-// tokenizeExpression splits an expression by delimiter, respecting brackets
-func tokenizeExpression(expr string, delimiter string) []string {
-	var result []string
-	var currentToken strings.Builder
+// hasTopLevelOperator checks if the operator exists at the top level (not inside brackets)
+func hasTopLevelOperator(expr string, operator string) bool {
 	bracketLevel := 0
+	opLen := len(operator)
+	exprLen := len(expr)
 
+	for i := 0; i <= exprLen-opLen; i++ {
+		if expr[i] == '[' {
+			bracketLevel++
+		} else if expr[i] == ']' {
+			bracketLevel--
+		} else if bracketLevel == 0 && i+opLen <= exprLen && expr[i:i+opLen] == operator {
+			return true
+		}
+	}
+	return false
+}
+
+// splitByOperator splits a string by an operator, respecting nested brackets
+func splitByOperator(expr string, operator string) []string {
+	result := make([]string, 0, 4) // Preallocate with reasonable capacity
+	var currentPart strings.Builder
+	bracketLevel := 0
 	i := 0
-	for i < len(expr) {
-		// Check if we've found the delimiter at the current position
-		if bracketLevel == 0 && i+len(delimiter) <= len(expr) && expr[i:i+len(delimiter)] == delimiter {
-			// Add the current token to the result
-			result = append(result, currentToken.String())
-			// Reset the current token
-			currentToken.Reset()
-			// Skip the delimiter
-			i += len(delimiter)
-		} else {
-			// Handle brackets
-			if expr[i] == '[' {
-				bracketLevel++
-			} else if expr[i] == ']' {
-				bracketLevel--
-			}
+	opLen := len(operator)
+	exprLen := len(expr)
 
-			// Add the current character to the token
-			currentToken.WriteByte(expr[i])
+	// Pre-size the builder to avoid reallocations
+	currentPart.Grow(len(expr) / 2)
+
+	for i < exprLen {
+		// Check for opening bracket
+		if expr[i] == '[' {
+			bracketLevel++
+			currentPart.WriteByte(expr[i])
+			i++
+		} else if expr[i] == ']' {
+			// Check for closing bracket
+			bracketLevel--
+			currentPart.WriteByte(expr[i])
+			i++
+		} else if bracketLevel == 0 && i+opLen <= exprLen && expr[i:i+opLen] == operator {
+			// We found the operator at top level
+			result = append(result, currentPart.String())
+			currentPart.Reset()
+			i += opLen // Skip the operator
+		} else {
+			// Regular character
+			currentPart.WriteByte(expr[i])
 			i++
 		}
 	}
 
-	// Add the last token if there's anything
-	if currentToken.Len() > 0 {
-		result = append(result, currentToken.String())
+	// Don't forget the last part
+	if currentPart.Len() > 0 {
+		result = append(result, currentPart.String())
 	}
 
 	return result
@@ -782,65 +871,301 @@ func tokenizeExpression(expr string, delimiter string) []string {
 
 // parseCondition parses a single condition like "field=value" or "field>=value"
 func parseCondition(condStr string) (Condition, error) {
-	// Match different operators: =, !=, >, <, >=, <=, LIKE, IN
-	operatorPattern := regexp.MustCompile(`(.*?)(=|!=|>=|<=|>|<|LIKE|IN)(.*)`)
-	matches := operatorPattern.FindStringSubmatch(condStr)
+	condStr = strings.TrimSpace(condStr)
 
-	if len(matches) != 4 {
-		return Condition{}, fmt.Errorf("invalid condition format: %s", condStr)
+	// Handle JSON field conditions (first level)
+	if jsonMatches := jsonFieldRegex.FindStringSubmatch(condStr); len(jsonMatches) == 4 {
+		// JSON field condition found
+		field := strings.TrimSpace(jsonMatches[1])
+		operator := strings.TrimSpace(jsonMatches[2])
+		valueStr := strings.TrimSpace(jsonMatches[3])
+
+		// Optimize JSON field formatting
+		field = formatJsonField(field)
+
+		value, err := parseValue(valueStr, operator)
+		if err != nil {
+			return Condition{}, err
+		}
+
+		return Condition{
+			Field:    field,
+			Operator: operator,
+			Value:    value,
+			IsNested: false,
+		}, nil
 	}
 
-	field := strings.TrimSpace(matches[1])
-	operator := strings.TrimSpace(matches[2])
-	valueStr := strings.TrimSpace(matches[3])
+	// Handle nested JSON field conditions (second level)
+	if nestedMatches := nestedJsonRegex.FindStringSubmatch(condStr); len(nestedMatches) == 4 {
+		// Nested JSON field condition found
+		field := strings.TrimSpace(nestedMatches[1])
+		operator := strings.TrimSpace(nestedMatches[2])
+		valueStr := strings.TrimSpace(nestedMatches[3])
 
-	// Process the value based on operator
-	var value interface{}
+		// Optimize nested JSON field formatting
+		field = formatNestedJsonField(field)
 
+		value, err := parseValue(valueStr, operator)
+		if err != nil {
+			return Condition{}, err
+		}
+
+		return Condition{
+			Field:    field,
+			Operator: operator,
+			Value:    value,
+			IsNested: false,
+		}, nil
+	}
+
+	// Standard field pattern
+	if matches := operatorRegex.FindStringSubmatch(condStr); len(matches) == 4 {
+		field := strings.TrimSpace(matches[1])
+		operator := strings.TrimSpace(matches[2])
+		valueStr := strings.TrimSpace(matches[3])
+
+		value, err := parseValue(valueStr, operator)
+		if err != nil {
+			return Condition{}, err
+		}
+
+		return Condition{
+			Field:    field,
+			Operator: operator,
+			Value:    value,
+			IsNested: false,
+		}, nil
+	}
+
+	return Condition{}, fmt.Errorf("invalid condition format: %s", condStr)
+}
+
+// formatJsonField optimizes the JSON field formatting
+func formatJsonField(field string) string {
+	parts := strings.Split(field, "->>")
+	if len(parts) <= 1 {
+		return field
+	}
+
+	// Faster string building than using append and join
+	var result strings.Builder
+	result.WriteString(parts[0])
+	result.WriteString("->>")
+
+	if !strings.HasPrefix(parts[1], "'") && !strings.HasSuffix(parts[1], "'") {
+		result.WriteByte('\'')
+		result.WriteString(parts[1])
+		result.WriteByte('\'')
+	} else {
+		result.WriteString(parts[1])
+	}
+
+	return result.String()
+}
+
+// formatNestedJsonField optimizes the nested JSON field formatting
+func formatNestedJsonField(field string) string {
+	parts := strings.Split(field, "->>")
+	if len(parts) <= 1 {
+		return field
+	}
+
+	secondParts := strings.Split(parts[0], "->")
+	if len(secondParts) <= 1 {
+		return field
+	}
+
+	var result strings.Builder
+	result.WriteString(secondParts[0])
+	result.WriteString("->")
+
+	if !strings.HasPrefix(secondParts[1], "'") && !strings.HasSuffix(secondParts[1], "'") {
+		result.WriteByte('\'')
+		result.WriteString(secondParts[1])
+		result.WriteByte('\'')
+	} else {
+		result.WriteString(secondParts[1])
+	}
+
+	result.WriteString("->>")
+
+	if len(parts) > 1 {
+		if !strings.HasPrefix(parts[1], "'") && !strings.HasSuffix(parts[1], "'") {
+			result.WriteByte('\'')
+			result.WriteString(parts[1])
+			result.WriteByte('\'')
+		} else {
+			result.WriteString(parts[1])
+		}
+	}
+
+	return result.String()
+}
+
+// parseValue parses the value part of a condition based on the operator
+func parseValue(valueStr string, operator string) (interface{}, error) {
 	// Handle the IN operator specially
 	if operator == "IN" && strings.HasPrefix(valueStr, "(") && strings.HasSuffix(valueStr, ")") {
 		// Remove parentheses and split by comma
 		valueStr = valueStr[1 : len(valueStr)-1]
 		values := strings.Split(valueStr, ",")
 
-		// Clean up each value
+		// Pre-allocate the result array with the right capacity
 		cleanValues := make([]string, 0, len(values))
 		for _, v := range values {
-			cleanValues = append(cleanValues, strings.TrimSpace(v))
+			v = strings.TrimSpace(v)
+			// Remove quotes if present
+			if (strings.HasPrefix(v, "'") && strings.HasSuffix(v, "'")) ||
+				(strings.HasPrefix(v, "\"") && strings.HasSuffix(v, "\"")) {
+				v = v[1 : len(v)-1]
+			}
+			cleanValues = append(cleanValues, v)
 		}
 
-		value = cleanValues
-	} else {
-		// Try to convert to int or float if possible
-		if intVal, err := strconv.Atoi(valueStr); err == nil {
-			value = intVal
-		} else if floatVal, err := strconv.ParseFloat(valueStr, 64); err == nil {
-			value = floatVal
-		} else if valueStr == "true" || valueStr == "false" {
-			value = valueStr == "true"
-		} else if valueStr == "null" {
-			value = nil
+		return cleanValues, nil
+	}
+
+	// Try to convert to appropriate type
+	if intVal, err := strconv.Atoi(valueStr); err == nil {
+		return intVal, nil
+	} else if floatVal, err := strconv.ParseFloat(valueStr, 64); err == nil {
+		return floatVal, nil
+	} else if valueStr == "true" || valueStr == "false" {
+		return valueStr == "true", nil
+	} else if valueStr == "null" {
+		return nil, nil
+	} else if strings.HasPrefix(valueStr, "{") && strings.HasSuffix(valueStr, "}") {
+		// Try to parse as JSON
+		var jsonValue map[string]interface{}
+		if err := json.Unmarshal([]byte(valueStr), &jsonValue); err == nil {
+			return jsonValue, nil
+		}
+	} else if strings.HasPrefix(valueStr, "[") && strings.HasSuffix(valueStr, "]") && operator != "IN" {
+		// Try to parse as JSON array
+		var jsonArray []interface{}
+		if err := json.Unmarshal([]byte(valueStr), &jsonArray); err == nil {
+			return jsonArray, nil
+		}
+	}
+
+	// Handle date format (YYYY-MM-DD)
+	if dateRegex.MatchString(valueStr) {
+		return valueStr, nil // Keep as string, will be converted in SQL
+	}
+
+	// Treat as string, removing quotes if present
+	if (strings.HasPrefix(valueStr, "'") && strings.HasSuffix(valueStr, "'")) ||
+		(strings.HasPrefix(valueStr, "\"") && strings.HasSuffix(valueStr, "\"")) {
+		return valueStr[1 : len(valueStr)-1], nil
+	}
+
+	return valueStr, nil
+}
+
+// BuildWhereClause builds a SQL WHERE clause from the filter conditions
+func BuildWhereClause(filters []Filter, startParamIndex int) (string, []interface{}, int) {
+	if len(filters) == 0 {
+		return "", nil, startParamIndex
+	}
+
+	var clauses []string
+	var params []interface{}
+	paramIndex := startParamIndex
+
+	for _, filter := range filters {
+		clause, filterParams, newParamIndex := buildFilterClause(filter, paramIndex)
+		if clause != "" {
+			clauses = append(clauses, clause)
+			params = append(params, filterParams...)
+			paramIndex = newParamIndex
+		}
+	}
+
+	if len(clauses) == 0 {
+		return "", nil, paramIndex
+	}
+
+	// whereClause := "WHERE " + strings.Join(clauses, " AND ")
+	whereClause := strings.Join(clauses, " AND ")
+	return whereClause, params, paramIndex
+}
+
+// buildFilterClause builds a SQL clause for a single filter
+func buildFilterClause(filter Filter, startParamIndex int) (string, []interface{}, int) {
+	if len(filter.Conditions) == 0 {
+		return "", nil, startParamIndex
+	}
+
+	var clauses []string
+	var params []interface{}
+	paramIndex := startParamIndex
+
+	for _, condition := range filter.Conditions {
+		if condition.IsNested && condition.Nested != nil {
+			// Handle nested filter
+			nestedClause, nestedParams, newParamIndex := buildFilterClause(*condition.Nested, paramIndex)
+			if nestedClause != "" {
+				clauses = append(clauses, "("+nestedClause+")")
+				params = append(params, nestedParams...)
+				paramIndex = newParamIndex
+			}
 		} else {
-			// Handle date format (YYYY-MM-DD)
-			if datePattern := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`); datePattern.MatchString(valueStr) {
-				value = valueStr // Keep as string, will be converted in SQL
-			} else {
-				// Treat as string, removing quotes if present
-				if (strings.HasPrefix(valueStr, "'") && strings.HasSuffix(valueStr, "'")) ||
-					(strings.HasPrefix(valueStr, "\"") && strings.HasSuffix(valueStr, "\"")) {
-					value = valueStr[1 : len(valueStr)-1]
-				} else {
-					value = valueStr
-				}
+			// Handle regular condition
+			clause, condParams, newParamIndex := buildConditionClause(condition, paramIndex)
+			if clause != "" {
+				clauses = append(clauses, clause)
+				params = append(params, condParams...)
+				paramIndex = newParamIndex
 			}
 		}
 	}
 
-	return Condition{
-		Field:    field,
-		Operator: operator,
-		Value:    value,
-	}, nil
+	if len(clauses) == 0 {
+		return "", nil, paramIndex
+	}
+
+	operator := " AND "
+	if filter.Operator == "OR" {
+		operator = " OR "
+	}
+
+	return strings.Join(clauses, operator), params, paramIndex
+}
+
+// buildConditionClause builds a SQL clause for a single condition
+func buildConditionClause(condition Condition, paramIndex int) (string, []interface{}, int) {
+	if condition.Field == "_nested" {
+		// This shouldn't happen with the new structure, but keeping for backwards compatibility
+		return "", nil, paramIndex
+	}
+
+	newParamIndex := paramIndex
+	placeholder := fmt.Sprintf("$%d", newParamIndex)
+	paramIndex = paramIndex + 1
+	newParamIndex = paramIndex
+	// Handle special operators
+	switch condition.Operator {
+	case "IN":
+		if values, ok := condition.Value.([]string); ok {
+			placeholders := make([]string, len(values))
+			params := make([]interface{}, len(values))
+			for i, v := range values {
+				placeholders[i] = fmt.Sprintf("$%d", paramIndex+i+1)
+				params[i] = v
+			}
+			newParamIndex = paramIndex + len(values)
+			return fmt.Sprintf("%s IN (%s)", condition.Field, strings.Join(placeholders, ", ")), params, newParamIndex
+		}
+		return fmt.Sprintf("%s IN (%s)", condition.Field, placeholder), []interface{}{condition.Value}, newParamIndex
+	case "LIKE":
+		return fmt.Sprintf("%s LIKE %s", condition.Field, placeholder), []interface{}{condition.Value}, newParamIndex
+	case "NESTED":
+		// This shouldn't happen with the new structure, but keeping for backwards compatibility
+		return "", nil, paramIndex
+	default:
+		return fmt.Sprintf("%s %s %s", condition.Field, condition.Operator, placeholder), []interface{}{condition.Value}, newParamIndex
+	}
 }
 
 // buildSelectQuery builds a SELECT query with the given parameters
@@ -995,7 +1320,7 @@ func buildUpdateQuery(
 
 	// Add WHERE clause
 	if len(params.Filters) > 0 {
-		whereClause, whereArgs, newArgIndex := buildWhereClause(params.Filters, argIndex)
+		whereClause, whereArgs, newArgIndex := BuildWhereClause(params.Filters, argIndex)
 		if whereClause != "" {
 			queryBuilder.WriteString(" WHERE ")
 			queryBuilder.WriteString(whereClause)
@@ -1083,7 +1408,8 @@ func buildWhereClause(filters []Filter, argIndex int) (string, []interface{}, in
 		return "", nil, argIndex
 	}
 
-	whereClause := "WHERE " + strings.Join(clauses, " AND ")
+	// whereClause := "WHERE " + strings.Join(clauses, " AND ")
+	whereClause := strings.Join(clauses, " AND ")
 	return whereClause, args, argIndex
 }
 
