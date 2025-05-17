@@ -28,87 +28,87 @@ func Usage(ctx context.Context, db *pgxpool.Pool, dbname string) {
 		return nil
 	})
 
-	// Define a simple workflow schema
-	schemaJSON := []byte(`{
-		"name": "SimpleCalculationWorkflow",
-		"startBlock": "jsCode",
-		"blocks": {
-		  "jsCode": {
-			"name": "code",
-			"handler": "code",
-			"blockConfig": {
-			  "js_code": "function ProcessTemplate() {\n  let template = inputs[\"template\"];\n  let copy = { ...inputs };\n  delete copy[\"template\"];\n  const result = template.replace(/{{\\s*([\\w.]+)\\s*}}/g, (match, key) => {\n    return key in copy ? copy[key] : match;\n  });\n  return result;\n}\nProcessTemplate();"
-			},
-			"inputMap": [
-			  "name",
-			  "age",
-			  "gender",
-			  "template"
-			],
-			"nextBlocks": ["endBlock"]
-		  },
-		  "endBlock": {
-			"name": "endBlock",
-			"handler": "noop"
-		  }
-		},
-		"endBlock": "endBlock"
-	  }`)
+	// // Define a simple workflow schema
+	// schemaJSON := []byte(`{
+	// 	"name": "SimpleCalculationWorkflow",
+	// 	"startBlock": "jsCode",
+	// 	"blocks": {
+	// 	  "jsCode": {
+	// 		"name": "code",
+	// 		"handler": "code",
+	// 		"blockConfig": {
+	// 		  "js_code": "function ProcessTemplate() {\n  let template = inputs[\"template\"];\n  let copy = { ...inputs };\n  delete copy[\"template\"];\n  const result = template.replace(/{{\\s*([\\w.]+)\\s*}}/g, (match, key) => {\n    return key in copy ? copy[key] : match;\n  });\n  return result;\n}\nProcessTemplate();"
+	// 		},
+	// 		"inputMap": [
+	// 		  "name",
+	// 		  "age",
+	// 		  "gender",
+	// 		  "template"
+	// 		],
+	// 		"nextBlocks": ["endBlock"]
+	// 	  },
+	// 	  "endBlock": {
+	// 		"name": "endBlock",
+	// 		"handler": "noop"
+	// 	  }
+	// 	},
+	// 	"endBlock": "endBlock"
+	//   }`)
 
-	// Load schema
-	schema, err := LoadSchema(schemaJSON)
-	if err != nil {
-		log.Fatalf("Error loading schema: %v", err)
-	}
+	// // Load schema
+	// schema, err := LoadSchema(schemaJSON)
+	// if err != nil {
+	// 	log.Fatalf("Error loading schema: %v", err)
+	// }
 
-	// Prepare input data
-	input := map[string]interface{}{
-		"name":     "NaveenBhargav",
-		"age":      25,
-		"gender":   "Male",
-		"template": "Hello, my name is {{name}}. I am {{age}} years old and identify as {{gender}}.",
-	}
+	// // Prepare input data
+	// input := map[string]interface{}{
+	// 	"name":     "NaveenBhargav",
+	// 	"age":      25,
+	// 	"gender":   "Male",
+	// 	"template": "Hello, my name is {{name}}. I am {{age}} years old and identify as {{gender}}.",
+	// }
 
-	// Execute workflow
-	start := time.Now()
-	result, err := engine.Execute(schema, input)
-	elapsed := time.Since(start)
+	// // Execute workflow
+	// start := time.Now()
+	// result, err := engine.Execute(schema, input)
+	// elapsed := time.Since(start)
 
-	if err != nil {
-		log.Fatalf("Error executing workflow: %v", err)
-	}
+	// if err != nil {
+	// 	log.Fatalf("Error executing workflow: %v", err)
+	// }
 
-	// Print result
-	resultJSON, _ := json.MarshalIndent(result, "", "  ")
-	fmt.Printf("Workflow result:\n%s\n", string(resultJSON))
-	fmt.Printf("Execution time: %v\n", elapsed)
+	// // Print result
+	// resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	// fmt.Printf("Workflow result:\n%s\n", string(resultJSON))
+	// fmt.Printf("Execution time: %v\n", elapsed)
 
 	// Example with a more complex workflow with input/output mapping
-	complexSchemaJSON := []byte(`{
-		"name": "ComplexWorkflow",
+	complexSchemaJSON := map[string]interface{}{
+		"name":       "ComplexWorkflow",
 		"startBlock": "addBlock",
-		"blocks": {
-			"addBlock": {
-				"name": "addBlock",
-				"handler": "add",
-				"inputMap": ["num1", "num2"],
-				"outputMap": ["result"],
-				"nextBlocks": ["transformBlock"]
+		"blocks": map[string]interface{}{
+			"addBlock": map[string]interface{}{
+				"name":       "addBlock",
+				"handler":    "add",
+				"inputMap":   []string{"num1", "num2"},
+				"outputMap":  []string{"result"},
+				"nextBlocks": []string{"transformBlock"},
 			},
-			"transformBlock": {
-				"name": "transformBlock",
-				"handler": "stringTransform",
-				"inputMap": ["text", "operation"],
-				"outputMap": ["transformedText"],
-				"nextBlocks": ["endBlock"]
+			"transformBlock": map[string]interface{}{
+				"name":       "transformBlock",
+				"handler":    "stringTransform",
+				"inputMap":   []string{"text", "operation"},
+				"outputMap":  []string{"transformedText"},
+				"nextBlocks": []string{"endBlock"},
 			},
-			"endBlock": {
-				"name": "endBlock",
-				"handler": "noop"
-			}
+			"endBlock": map[string]interface{}{
+				"name":    "endBlock",
+				"handler": "noop",
+			},
 		},
-		"endBlock": "endBlock"
-	}`)
+		"endBlock": "endBlock",
+	}
 
 	newinputs := map[string]interface{}{
 		"num1":            10.0,
@@ -125,7 +125,7 @@ func Usage(ctx context.Context, db *pgxpool.Pool, dbname string) {
 	}
 
 	// Execute complex workflow
-	start = time.Now()
+	start := time.Now()
 	complexResult, err := engine.Execute(complexSchema, newinputs)
 	complexElapsed := time.Since(start)
 

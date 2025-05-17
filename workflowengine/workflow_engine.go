@@ -4,14 +4,13 @@ package workflowengine
 //https://claude.ai/share/603452a6-a548-4549-8d6a-187ca2af029c
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"lowcode.com/backend/utilities"
 )
 
 // BlockFunc defines the signature for a block function
@@ -21,18 +20,18 @@ type BlockFunc func(ctx context.Context, dbconfigs, input, schema, output map[st
 type Block struct {
 	Name        string                 `json:"name"`
 	Handler     string                 `json:"handler"`
-	BlockConfig map[string]interface{} `json:"blockConfig"`
-	InputMap    []string               `json:"inputMap,omitempty"`   // Optional: maps from global state to block input
-	OutputMap   []string               `json:"outputMap,omitempty"`  // Optional: maps from block output to global state
-	NextBlocks  []string               `json:"nextBlocks,omitempty"` // Optional: for conditional flows
+	BlockConfig map[string]interface{} `json:"block_config"`
+	InputMap    map[string]interface{} `json:"input_map,omitempty"`  // Optional: maps from global state to block input
+	OutputMap   map[string]interface{} `json:"output_map,omitempty"` // Optional: maps from block output to global state
+	NextBlocks  []string               `json:"next_block,omitempty"` // Optional: for conditional flows
 }
 
 // WorkflowSchema defines the structure of the workflow
 type WorkflowSchema struct {
 	Name       string            `json:"name"`
-	StartBlock string            `json:"startBlock"`
+	StartBlock string            `json:"start_block"`
 	Blocks     map[string]*Block `json:"blocks"`
-	EndBlock   string            `json:"endBlock"`
+	EndBlock   string            `json:"end_block"`
 }
 
 // Engine is the workflow execution engine
@@ -123,10 +122,8 @@ func (e *Engine) Execute(schema *WorkflowSchema, input map[string]interface{}) (
 
 		// Create input for the block from global state using inputMap
 		if len(currentBlock.InputMap) > 0 {
-			for _, key := range currentBlock.InputMap {
-				if val, ok := globalState[key]; ok {
-					e.blockInput[key] = val
-				}
+			for key, value := range currentBlock.InputMap {
+				e.blockInput[key] = value
 			}
 		} else {
 			// If no input map is specified, pass the entire global state
@@ -141,24 +138,9 @@ func (e *Engine) Execute(schema *WorkflowSchema, input map[string]interface{}) (
 			"current_block_name": currentBlockName,
 			"current_block":      currentBlock,
 		}
-		if err := handler(e.ctx, configs, e.blockInput, e.schemaData, e.blockOutput); err != nil {
+		if err := handler(e.ctx, configs, e.blockInput, e.schemaData, globalState); err != nil {
 			return nil, fmt.Errorf("error executing block %s: %w", currentBlock.Name, err)
 		}
-
-		// Update global state with block output using outputMap
-		if len(currentBlock.OutputMap) > 0 {
-			for _, key := range currentBlock.OutputMap {
-				if val, ok := e.blockOutput[key]; ok {
-					globalState[key] = val
-				}
-			}
-		} else {
-			// If no output map is specified, update the entire global state
-			for k, v := range e.blockOutput {
-				globalState[k] = v
-			}
-		}
-
 		// Determine the next block
 		if len(currentBlock.NextBlocks) > 0 {
 			currentBlockName = currentBlock.NextBlocks[0] // For now, just take the first next block
@@ -179,11 +161,9 @@ func clearMap(m map[string]interface{}) {
 }
 
 // LoadSchema loads a workflow schema from JSON
-func LoadSchema(schemaJSON []byte) (*WorkflowSchema, error) {
+func LoadSchema(schemaJSON map[string]interface{}) (*WorkflowSchema, error) {
 	var schema WorkflowSchema
-	d := json.NewDecoder(bytes.NewReader(schemaJSON))
-	d.UseNumber() // Use json.Number instead of float64 for numbers
-	err := d.Decode(&schema)
+	err := utilities.ConvertToType(schemaJSON, &schema)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling schema: %w", err)
 	}
