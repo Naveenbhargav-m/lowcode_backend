@@ -347,28 +347,37 @@ func InsertRecord(
 
 	log.Printf("Executing query: %s with values: %v", query, values)
 
-	row, err := db.Query(ctx, query, values...)
-	if err != nil {
-		fmt.Printf("error: %v\n", err)
-	}
-	// Parse the returned row into a map
-	fieldDescriptions := row.FieldDescriptions()
-	returnedColumns := make([]string, len(fieldDescriptions))
-	returnedValues := make([]interface{}, len(fieldDescriptions))
-	returnedValuePtrs := make([]interface{}, len(fieldDescriptions))
+	// Key fix: Use QueryRow instead of Query for single row results
+	row := db.QueryRow(ctx, query, values...)
 
-	for i, fd := range fieldDescriptions {
-		returnedColumns[i] = string(fd.Name)
-		returnedValuePtrs[i] = &returnedValues[i]
-	}
-
-	if err := row.Scan(returnedValuePtrs...); err != nil {
-		return nil, fmt.Errorf("error scanning inserted row: %w", err)
-	}
-
+	// Create a map to store the result
 	result := make(map[string]interface{})
-	for i, colName := range returnedColumns {
-		result[colName] = returnedValues[i]
+
+	// Get the column descriptions from a simple query
+	colQuery := fmt.Sprintf("SELECT * FROM \"%s\".\"%s\" WHERE 1=0", schema, table)
+	rows, err := db.Query(ctx, colQuery)
+	if err != nil {
+		return nil, fmt.Errorf("error getting column descriptions: %w", err)
+	}
+	fieldDescriptions := rows.FieldDescriptions()
+	rows.Close()
+
+	// Create slices to hold the values
+	scanValues := make([]interface{}, len(fieldDescriptions))
+	for i := range scanValues {
+		scanValues[i] = new(interface{})
+	}
+
+	// Scan the row into the scanValues slice
+	if err := row.Scan(scanValues...); err != nil {
+		return nil, fmt.Errorf("error scanning row: %w", err)
+	}
+
+	// Populate the result map
+	for i, desc := range fieldDescriptions {
+		colName := string(desc.Name)
+		value := *scanValues[i].(*interface{})
+		result[colName] = value
 	}
 
 	return result, nil
@@ -1212,7 +1221,7 @@ func buildSelectQuery(schema, table string, params QueryParams) (string, []inter
 	if len(params.Filters) > 0 {
 		whereClause, whereArgs, newArgIndex := buildWhereClause(params.Filters, argIndex)
 		if whereClause != "" {
-			queryBuilder.WriteString(" ")
+			queryBuilder.WriteString(" WHERE ")
 			queryBuilder.WriteString(whereClause)
 			args = append(args, whereArgs...)
 			argIndex = newArgIndex

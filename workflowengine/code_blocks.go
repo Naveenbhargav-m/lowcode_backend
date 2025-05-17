@@ -13,6 +13,7 @@ func JSBlock(ctx context.Context, dbconfigs, input, schema, output map[string]in
 	myblock := GetCurBlockData(schema)
 	configs := myblock.BlockConfig
 	jscode, _ := configs["js_code"].(string)
+	blockid := myblock.Name
 	v8ctx := v8.NewContext()
 	global := v8ctx.Global()
 	// Convert Go maps to V8 values - optimize by only passing needed data
@@ -33,12 +34,12 @@ func JSBlock(ctx context.Context, dbconfigs, input, schema, output map[string]in
 		global.Set("schema", v8Schema)
 	}
 
-	if strings.Contains(jscode, "outputs") {
+	if strings.Contains(jscode, "state") {
 		v8out, err := GoToV8Value(v8ctx, output)
 		if err != nil {
 			return err
 		}
-		global.Set("outputs", v8out)
+		global.Set("state", v8out)
 	}
 
 	resp, err := v8ctx.RunScript(jscode, "flow.js")
@@ -51,7 +52,7 @@ func JSBlock(ctx context.Context, dbconfigs, input, schema, output map[string]in
 			bytes, _ := resp.MarshalJSON()
 			var result interface{}
 			json.Unmarshal(bytes, &result)
-			output["result"] = result
+			output[blockid] = result
 		}
 	}
 
@@ -59,6 +60,7 @@ func JSBlock(ctx context.Context, dbconfigs, input, schema, output map[string]in
 
 }
 
+// this will convert the value from go runtime to that of compatiable with v8go js runtime
 func GoToV8Value(ctx *v8go.Context, value interface{}) (*v8go.Value, error) {
 	bytes, _ := json.Marshal(value)
 	val, err := v8go.JSONParse(ctx, string(bytes))

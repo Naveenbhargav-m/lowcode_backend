@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -235,13 +232,7 @@ func createTableHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	cmd := exec.Command(filepath.Join(os.Getenv("PWD"), "prestd"))
-	err := cmd.Start()
-	if err != nil {
-		log.Fatalf("error starting prestd binary: %v\n", err)
-	}
 
-	fmt.Println("started prestd in 8000!")
 	// Initialize the global pool manager with a 10-minute inactivity TTL
 	dbstore.InitPoolManager(10 * time.Minute)
 

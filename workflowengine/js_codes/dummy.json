@@ -1,0 +1,974 @@
+{
+    "users": [
+      {
+        "id": "u1111",
+        "email": "alice@example.com",
+        "phone": "+1234567890",
+        "password_hash": "hashed_password_1",
+        "created_at": "2025-05-01T10:00:00Z",
+        "last_login": "2025-05-10T12:00:00Z"
+      },
+      {
+        "id": "u2222",
+        "email": "bob@example.com",
+        "phone": "+1987654321",
+        "password_hash": "hashed_password_2",
+        "created_at": "2025-05-02T11:00:00Z",
+        "last_login": "2025-05-11T13:00:00Z"
+      },
+      {
+        "id": "u3333",
+        "email": "charlie@example.com",
+        "phone": "+1122334455",
+        "password_hash": "hashed_password_3",
+        "created_at": "2025-05-03T09:30:00Z",
+        "last_login": "2025-05-12T14:15:00Z"
+      },
+      {
+        "id": "u4444",
+        "email": "diana@example.com",
+        "phone": "+1555666777",
+        "password_hash": "hashed_password_4",
+        "created_at": "2025-05-04T08:45:00Z",
+        "last_login": "2025-05-13T10:20:00Z"
+      },
+      {
+        "id": "u5555",
+        "email": "evan@example.com",
+        "phone": "+1888999000",
+        "password_hash": "hashed_password_5",
+        "created_at": "2025-05-05T14:30:00Z",
+        "last_login": "2025-05-14T16:45:00Z"
+      },
+      {
+        "id": "u6666",
+        "email": "fiona@example.com",
+        "phone": "+1777888999",
+        "password_hash": "hashed_password_6",
+        "created_at": "2025-05-06T11:15:00Z",
+        "last_login": "2025-05-15T09:30:00Z"
+      },
+      {
+        "id": "u7777",
+        "email": "greg@example.com",
+        "phone": "+1444555666",
+        "password_hash": "hashed_password_7",
+        "created_at": "2025-05-07T13:45:00Z",
+        "last_login": "2025-05-14T18:20:00Z"
+      },
+      {
+        "id": "u8888",
+        "email": "hannah@example.com",
+        "phone": "+1333222111",
+        "password_hash": "hashed_password_8",
+        "created_at": "2025-05-08T10:30:00Z",
+        "last_login": "2025-05-15T11:45:00Z"
+      },
+      {
+        "id": "u9999",
+        "email": "ian@example.com",
+        "phone": "+1222333444",
+        "password_hash": "hashed_password_9",
+        "created_at": "2025-05-09T15:15:00Z",
+        "last_login": "2025-05-15T20:30:00Z"
+      },
+      {
+        "id": "u1010",
+        "email": "julia@example.com",
+        "phone": "+1999888777",
+        "password_hash": "hashed_password_10",
+        "created_at": "2025-05-10T09:00:00Z",
+        "last_login": "2025-05-16T08:15:00Z"
+      }
+    ],
+    
+    "subscriptions": [
+      {
+        "id": "s1111",
+        "user_id": "u1111",
+        "plan_name": "Premium",
+        "price": 19.99,
+        "status": "active",
+        "start_date": "2025-05-01T00:00:00Z",
+        "end_date": "2025-06-01T00:00:00Z",
+        "payment_provider": "Stripe",
+        "payment_reference": "stripe_txn_12345",
+        "created_at": "2025-05-01T00:00:00Z"
+      },
+      {
+        "id": "s2222",
+        "user_id": "u2222",
+        "plan_name": "Basic",
+        "price": 9.99,
+        "status": "active",
+        "start_date": "2025-05-02T00:00:00Z",
+        "end_date": "2025-06-02T00:00:00Z",
+        "payment_provider": "PayPal",
+        "payment_reference": "paypal_txn_54321",
+        "created_at": "2025-05-02T00:00:00Z"
+      },
+      {
+        "id": "s3333",
+        "user_id": "u3333",
+        "plan_name": "Premium",
+        "price": 19.99,
+        "status": "active",
+        "start_date": "2025-05-03T00:00:00Z",
+        "end_date": "2025-06-03T00:00:00Z",
+        "payment_provider": "Stripe",
+        "payment_reference": "stripe_txn_67890",
+        "created_at": "2025-05-03T00:00:00Z"
+      },
+      {
+        "id": "s4444",
+        "user_id": "u4444",
+        "plan_name": "Premium Plus",
+        "price": 29.99,
+        "status": "active",
+        "start_date": "2025-05-04T00:00:00Z",
+        "end_date": "2025-06-04T00:00:00Z",
+        "payment_provider": "Stripe",
+        "payment_reference": "stripe_txn_09876",
+        "created_at": "2025-05-04T00:00:00Z"
+      },
+      {
+        "id": "s5555",
+        "user_id": "u5555",
+        "plan_name": "Basic",
+        "price": 9.99,
+        "status": "cancelled",
+        "start_date": "2025-05-05T00:00:00Z",
+        "end_date": "2025-05-15T00:00:00Z",
+        "payment_provider": "PayPal",
+        "payment_reference": "paypal_txn_13579",
+        "created_at": "2025-05-05T00:00:00Z"
+      },
+      {
+        "id": "s6666",
+        "user_id": "u6666",
+        "plan_name": "Premium",
+        "price": 19.99,
+        "status": "active",
+        "start_date": "2025-05-06T00:00:00Z",
+        "end_date": "2025-06-06T00:00:00Z",
+        "payment_provider": "Stripe",
+        "payment_reference": "stripe_txn_24680",
+        "created_at": "2025-05-06T00:00:00Z"
+      },
+      {
+        "id": "s7777",
+        "user_id": "u7777",
+        "plan_name": "Premium Plus",
+        "price": 29.99,
+        "status": "active",
+        "start_date": "2025-05-07T00:00:00Z",
+        "end_date": "2025-06-07T00:00:00Z",
+        "payment_provider": "Stripe",
+        "payment_reference": "stripe_txn_97531",
+        "created_at": "2025-05-07T00:00:00Z"
+      },
+      {
+        "id": "s8888",
+        "user_id": "u8888",
+        "plan_name": "Basic",
+        "price": 9.99,
+        "status": "active",
+        "start_date": "2025-05-08T00:00:00Z",
+        "end_date": "2025-06-08T00:00:00Z",
+        "payment_provider": "PayPal",
+        "payment_reference": "paypal_txn_86420",
+        "created_at": "2025-05-08T00:00:00Z"
+      },
+      {
+        "id": "s9999",
+        "user_id": "u9999",
+        "plan_name": "Premium",
+        "price": 19.99,
+        "status": "expired",
+        "start_date": "2025-04-09T00:00:00Z",
+        "end_date": "2025-05-09T00:00:00Z",
+        "payment_provider": "Stripe",
+        "payment_reference": "stripe_txn_12321",
+        "created_at": "2025-04-09T00:00:00Z"
+      },
+      {
+        "id": "s1010",
+        "user_id": "u1010",
+        "plan_name": "Premium Plus",
+        "price": 29.99,
+        "status": "active",
+        "start_date": "2025-05-10T00:00:00Z",
+        "end_date": "2025-06-10T00:00:00Z",
+        "payment_provider": "Stripe",
+        "payment_reference": "stripe_txn_56789",
+        "created_at": "2025-05-10T00:00:00Z"
+      }
+    ],
+  
+    "user_interests": [
+      { "user_id": "u1111", "interest_id": 1 },
+      { "user_id": "u1111", "interest_id": 4 },
+      { "user_id": "u1111", "interest_id": 14 },
+      { "user_id": "u2222", "interest_id": 2 },
+      { "user_id": "u2222", "interest_id": 3 },
+      { "user_id": "u2222", "interest_id": 13 },
+      { "user_id": "u3333", "interest_id": 5 },
+      { "user_id": "u3333", "interest_id": 9 },
+      { "user_id": "u3333", "interest_id": 14 },
+      { "user_id": "u4444", "interest_id": 8 },
+      { "user_id": "u4444", "interest_id": 10 },
+      { "user_id": "u4444", "interest_id": 11 },
+      { "user_id": "u5555", "interest_id": 4 },
+      { "user_id": "u5555", "interest_id": 6 },
+      { "user_id": "u6666", "interest_id": 7 },
+      { "user_id": "u6666", "interest_id": 10 },
+      { "user_id": "u6666", "interest_id": 16 },
+      { "user_id": "u7777", "interest_id": 3 },
+      { "user_id": "u7777", "interest_id": 12 },
+      { "user_id": "u8888", "interest_id": 9 },
+      { "user_id": "u8888", "interest_id": 17 },
+      { "user_id": "u8888", "interest_id": 20 },
+      { "user_id": "u9999", "interest_id": 15 },
+      { "user_id": "u9999", "interest_id": 18 },
+      { "user_id": "u1010", "interest_id": 18 },
+      { "user_id": "u1010", "interest_id": 19 }
+    ],
+    
+    "notifications": [
+      {
+        "id": "n1111",
+        "user_id": "u1111",
+        "type": "match",
+        "content": "You matched with Bob Smith!",
+        "read": true,
+        "created_at": "2025-05-06T13:00:00Z"
+      },
+      {
+        "id": "n2222",
+        "user_id": "u2222",
+        "type": "match",
+        "content": "You matched with Alice Johnson!",
+        "read": true,
+        "created_at": "2025-05-06T13:00:00Z"
+      },
+      {
+        "id": "n3333",
+        "user_id": "u1111",
+        "type": "message",
+        "content": "New message from Bob Smith",
+        "read": true,
+        "created_at": "2025-05-06T13:10:00Z"
+      },
+      {
+        "id": "n4444",
+        "user_id": "u3333",
+        "type": "match",
+        "content": "You matched with Diana Martinez!",
+        "read": true,
+        "created_at": "2025-05-08T14:30:00Z"
+      },
+      {
+        "id": "n5555",
+        "user_id": "u4444",
+        "type": "match",
+        "content": "You matched with Charlie Davis!",
+        "read": true,
+        "created_at": "2025-05-08T14:30:00Z"
+      },
+      {
+        "id": "n6666",
+        "user_id": "u4444",
+        "type": "message",
+        "content": "New message from Charlie Davis",
+        "read": false,
+        "created_at": "2025-05-08T14:35:00Z"
+      },
+      {
+        "id": "n7777",
+        "user_id": "u5555",
+        "type": "match",
+        "content": "You matched with Hannah Lee!",
+        "read": true,
+        "created_at": "2025-05-12T16:45:00Z"
+      },
+      {
+        "id": "n8888",
+        "user_id": "u8888",
+        "type": "match",
+        "content": "You matched with Evan Wilson!",
+        "read": false,
+        "created_at": "2025-05-12T16:45:00Z"
+      },
+      {
+        "id": "n9999",
+        "user_id": "u1111",
+        "type": "match",
+        "content": "You matched with Greg Thompson!",
+        "read": false,
+        "created_at": "2025-05-15T10:10:00Z"
+      },
+      {
+        "id": "n1010",
+        "user_id": "u7777",
+        "type": "match",
+        "content": "You matched with Alice Johnson!",
+        "read": false,
+        "created_at": "2025-05-15T10:10:00Z"
+      }
+    ],
+    
+    "profiles": [
+      {
+        "user_id": "u1111",
+        "full_name": "Alice Johnson",
+        "username": "alicej",
+        "gender": "female",
+        "date_of_birth": "1995-04-10",
+        "bio": "Loves hiking and coffee.",
+        "occupation": "Product Manager",
+        "company": "TechCorp",
+        "location": "San Francisco, CA",
+        "latitude": 37.7749,
+        "longitude": -122.4194,
+        "profile_photo_url": "https://example.com/photos/alice.jpg",
+        "created_at": "2025-05-01T10:01:00Z"
+      },
+      {
+        "user_id": "u2222",
+        "full_name": "Bob Smith",
+        "username": "bobby_s",
+        "gender": "male",
+        "date_of_birth": "1990-08-15",
+        "bio": "Music and coding are life.",
+        "occupation": "Software Engineer",
+        "company": "DevHouse",
+        "location": "Austin, TX",
+        "latitude": 30.2672,
+        "longitude": -97.7431,
+        "profile_photo_url": "https://example.com/photos/bob.jpg",
+        "created_at": "2025-05-02T11:01:00Z"
+      },
+      {
+        "user_id": "u3333",
+        "full_name": "Charlie Davis",
+        "username": "charlie_d",
+        "gender": "male",
+        "date_of_birth": "1992-01-25",
+        "bio": "Foodie and fitness enthusiast.",
+        "occupation": "Chef",
+        "company": "Gourmet Eats",
+        "location": "Chicago, IL",
+        "latitude": 41.8781,
+        "longitude": -87.6298,
+        "profile_photo_url": "https://example.com/photos/charlie.jpg",
+        "created_at": "2025-05-03T09:31:00Z"
+      },
+      {
+        "user_id": "u4444",
+        "full_name": "Diana Martinez",
+        "username": "di_martinez",
+        "gender": "female",
+        "date_of_birth": "1994-06-12",
+        "bio": "Art lover and yoga instructor.",
+        "occupation": "Graphic Designer",
+        "company": "Creative Studio",
+        "location": "Los Angeles, CA",
+        "latitude": 34.0522,
+        "longitude": -118.2437,
+        "profile_photo_url": "https://example.com/photos/diana.jpg",
+        "created_at": "2025-05-04T08:46:00Z"
+      },
+      {
+        "user_id": "u5555",
+        "full_name": "Evan Wilson",
+        "username": "evan_w",
+        "gender": "male",
+        "date_of_birth": "1989-11-30",
+        "bio": "Travel addict and photographer.",
+        "occupation": "Photographer",
+        "company": "Frame Perfect",
+        "location": "Seattle, WA",
+        "latitude": 47.6062,
+        "longitude": -122.3321,
+        "profile_photo_url": "https://example.com/photos/evan.jpg",
+        "created_at": "2025-05-05T14:31:00Z"
+      },
+      {
+        "user_id": "u6666",
+        "full_name": "Fiona Campbell",
+        "username": "fiona_c",
+        "gender": "female",
+        "date_of_birth": "1993-09-18",
+        "bio": "Bookworm and coffee enthusiast.",
+        "occupation": "Librarian",
+        "company": "City Library",
+        "location": "Portland, OR",
+        "latitude": 45.5051,
+        "longitude": -122.6750,
+        "profile_photo_url": "https://example.com/photos/fiona.jpg",
+        "created_at": "2025-05-06T11:16:00Z"
+      },
+      {
+        "user_id": "u7777",
+        "full_name": "Greg Thompson",
+        "username": "greg_t",
+        "gender": "male",
+        "date_of_birth": "1991-03-22",
+        "bio": "Music producer and DJ by night.",
+        "occupation": "Sound Engineer",
+        "company": "Beat Studios",
+        "location": "Nashville, TN",
+        "latitude": 36.1627,
+        "longitude": -86.7816,
+        "profile_photo_url": "https://example.com/photos/greg.jpg",
+        "created_at": "2025-05-07T13:46:00Z"
+      },
+      {
+        "user_id": "u8888",
+        "full_name": "Hannah Lee",
+        "username": "hannah_l",
+        "gender": "female",
+        "date_of_birth": "1996-07-05",
+        "bio": "Plant mom and environmental scientist.",
+        "occupation": "Environmental Consultant",
+        "company": "EcoSolutions",
+        "location": "Denver, CO",
+        "latitude": 39.7392,
+        "longitude": -104.9903,
+        "profile_photo_url": "https://example.com/photos/hannah.jpg",
+        "created_at": "2025-05-08T10:31:00Z"
+      },
+      {
+        "user_id": "u9999",
+        "full_name": "Ian Robinson",
+        "username": "ian_r",
+        "gender": "male",
+        "date_of_birth": "1988-12-14",
+        "bio": "Sports fanatic and data analyst.",
+        "occupation": "Data Scientist",
+        "company": "Sports Analytics",
+        "location": "Boston, MA",
+        "latitude": 42.3601,
+        "longitude": -71.0589,
+        "profile_photo_url": "https://example.com/photos/ian.jpg",
+        "created_at": "2025-05-09T15:16:00Z"
+      },
+      {
+        "user_id": "u1010",
+        "full_name": "Julia Kim",
+        "username": "julia_k",
+        "gender": "female",
+        "date_of_birth": "1997-02-28",
+        "bio": "Tech enthusiast and amateur astronomer.",
+        "occupation": "UX Designer",
+        "company": "StarTech",
+        "location": "New York, NY",
+        "latitude": 40.7128,
+        "longitude": -74.0060,
+        "profile_photo_url": "https://example.com/photos/julia.jpg",
+        "created_at": "2025-05-10T09:01:00Z"
+      }
+    ],
+    
+    "photos": [
+      {
+        "id": "p1111",
+        "user_id": "u1111",
+        "photo_url": "https://example.com/photos/alice1.jpg",
+        "is_primary": true,
+        "uploaded_at": "2025-05-01T10:05:00Z"
+      },
+      {
+        "id": "p2222",
+        "user_id": "u2222",
+        "photo_url": "https://example.com/photos/bob1.jpg",
+        "is_primary": true,
+        "uploaded_at": "2025-05-02T11:05:00Z"
+      },
+      {
+        "id": "p3333",
+        "user_id": "u1111",
+        "photo_url": "https://example.com/photos/alice2.jpg",
+        "is_primary": false,
+        "uploaded_at": "2025-05-01T10:10:00Z"
+      },
+      {
+        "id": "p4444",
+        "user_id": "u3333",
+        "photo_url": "https://example.com/photos/charlie1.jpg",
+        "is_primary": true,
+        "uploaded_at": "2025-05-03T09:35:00Z"
+      },
+      {
+        "id": "p5555",
+        "user_id": "u4444",
+        "photo_url": "https://example.com/photos/diana1.jpg",
+        "is_primary": true,
+        "uploaded_at": "2025-05-04T08:50:00Z"
+      },
+      {
+        "id": "p6666",
+        "user_id": "u5555",
+        "photo_url": "https://example.com/photos/evan1.jpg",
+        "is_primary": true,
+        "uploaded_at": "2025-05-05T14:35:00Z"
+      },
+      {
+        "id": "p7777",
+        "user_id": "u6666",
+        "photo_url": "https://example.com/photos/fiona1.jpg",
+        "is_primary": true,
+        "uploaded_at": "2025-05-06T11:20:00Z"
+      },
+      {
+        "id": "p8888",
+        "user_id": "u7777",
+        "photo_url": "https://example.com/photos/greg1.jpg",
+        "is_primary": true,
+        "uploaded_at": "2025-05-07T13:50:00Z"
+      },
+      {
+        "id": "p9999",
+        "user_id": "u8888",
+        "photo_url": "https://example.com/photos/hannah1.jpg", 
+        "is_primary": true,
+        "uploaded_at": "2025-05-08T10:35:00Z"
+      },
+      {
+        "id": "p1010",
+        "user_id": "u9999",
+        "photo_url": "https://example.com/photos/ian1.jpg",
+        "is_primary": true,
+        "uploaded_at": "2025-05-09T15:20:00Z"
+      }
+    ],
+    
+    "verification": [
+      {
+        "id": "v1111",
+        "user_id": "u1111",
+        "platform": "linkedin",
+        "profile_url": "https://linkedin.com/in/alice",
+        "verified": true,
+        "verified_at": "2025-05-03T09:00:00Z"
+      },
+      {
+        "id": "v2222",
+        "user_id": "u2222",
+        "platform": "facebook",
+        "profile_url": "https://facebook.com/bob.smith",
+        "verified": true,
+        "verified_at": "2025-05-03T10:15:00Z"
+      },
+      {
+        "id": "v3333",
+        "user_id": "u3333",
+        "platform": "instagram",
+        "profile_url": "https://instagram.com/charlie_d",
+        "verified": true,
+        "verified_at": "2025-05-04T11:30:00Z"
+      },
+      {
+        "id": "v4444",
+        "user_id": "u4444",
+        "platform": "twitter",
+        "profile_url": "https://twitter.com/di_martinez",
+        "verified": true,
+        "verified_at": "2025-05-05T09:45:00Z"
+      },
+      {
+        "id": "v5555",
+        "user_id": "u5555",
+        "platform": "linkedin",
+        "profile_url": "https://linkedin.com/in/evan_wilson",
+        "verified": true,
+        "verified_at": "2025-05-06T14:20:00Z"
+      },
+      {
+        "id": "v6666",
+        "user_id": "u6666",
+        "platform": "instagram",
+        "profile_url": "https://instagram.com/fiona_c",
+        "verified": false,
+        "verified_at": null
+      },
+      {
+        "id": "v7777",
+        "user_id": "u7777",
+        "platform": "spotify",
+        "profile_url": "https://spotify.com/users/greg_t",
+        "verified": true,
+        "verified_at": "2025-05-08T16:10:00Z"
+      },
+      {
+        "id": "v8888",
+        "user_id": "u8888",
+        "platform": "linkedin",
+        "profile_url": "https://linkedin.com/in/hannah_lee",
+        "verified": true,
+        "verified_at": "2025-05-09T13:25:00Z"
+      },
+      {
+        "id": "v9999",
+        "user_id": "u9999",
+        "platform": "facebook",
+        "profile_url": "https://facebook.com/ian.robinson",
+        "verified": false,
+        "verified_at": null
+      },
+      {
+        "id": "v1010",
+        "user_id": "u1010",
+        "platform": "github",
+        "profile_url": "https://github.com/julia_k",
+        "verified": true,
+        "verified_at": "2025-05-11T10:40:00Z"
+      }
+    ],
+    
+    "user_preferences": [
+      {
+        "user_id": "u1111",
+        "preferred_gender": "male",
+        "age_min": 25,
+        "age_max": 35,
+        "max_distance_km": 50,
+        "location_lat": 37.7749,
+        "location_lng": -122.4194,
+        "looking_for_relationship": true,
+        "preferred_industries": ["tech", "music"],
+        "updated_at": "2025-05-04T08:00:00Z"
+      },
+      {
+        "user_id": "u2222",
+        "preferred_gender": "female",
+        "age_min": 23,
+        "age_max": 33,
+        "max_distance_km": 30,
+        "location_lat": 30.2672,
+        "location_lng": -97.7431,
+        "looking_for_relationship": true,
+        "preferred_industries": ["tech", "arts"],
+        "updated_at": "2025-05-03T14:30:00Z"
+      },
+      {
+        "user_id": "u3333",
+        "preferred_gender": "female",
+        "age_min": 25,
+        "age_max": 40,
+        "max_distance_km": 25,
+        "location_lat": 41.8781,
+        "location_lng": -87.6298,
+        "looking_for_relationship": true,
+        "preferred_industries": ["food", "fitness"],
+        "updated_at": "2025-05-04T10:15:00Z"
+      },
+      {
+        "user_id": "u4444",
+        "preferred_gender": "male",
+        "age_min": 27,
+        "age_max": 37,
+        "max_distance_km": 35,
+        "location_lat": 34.0522,
+        "location_lng": -118.2437,
+        "looking_for_relationship": false,
+        "preferred_industries": ["arts", "wellness"],
+        "updated_at": "2025-05-05T11:45:00Z"
+      },
+      {
+        "user_id": "u5555",
+        "preferred_gender": "female",
+        "age_min": 25,
+        "age_max": 35,
+        "max_distance_km": 40,
+        "location_lat": 47.6062,
+        "location_lng": -122.3321,
+        "looking_for_relationship": true,
+        "preferred_industries": ["arts", "travel"],
+        "updated_at": "2025-05-06T09:20:00Z"
+      },
+      {
+        "user_id": "u6666",
+        "preferred_gender": "male",
+        "age_min": 28,
+        "age_max": 38,
+        "max_distance_km": 20,
+        "location_lat": 45.5051,
+        "location_lng": -122.6750,
+        "looking_for_relationship": true,
+        "preferred_industries": ["literature", "education"],
+        "updated_at": "2025-05-07T13:10:00Z"
+      },
+      {
+        "user_id": "u7777",
+        "preferred_gender": "female",
+        "age_min": 24,
+        "age_max": 34,
+        "max_distance_km": 45,
+        "location_lat": 36.1627,
+        "location_lng": -86.7816,
+        "looking_for_relationship": false,
+        "preferred_industries": ["music", "entertainment"],
+        "updated_at": "2025-05-08T15:40:00Z"
+      },
+      {
+        "user_id": "u8888",
+        "preferred_gender": "male",
+        "age_min": 26,
+        "age_max": 36,
+        "max_distance_km": 30,
+        "location_lat": 39.7392,
+        "location_lng": -104.9903,
+        "looking_for_relationship": true,
+        "preferred_industries": ["science", "environment"],
+        "updated_at": "2025-05-09T10:15:00Z"
+      },
+      {
+        "user_id": "u9999",
+        "preferred_gender": "female",
+        "age_min": 25,
+        "age_max": 37,
+        "max_distance_km": 35,
+        "location_lat": 42.3601,
+        "location_lng": -71.0589,
+        "looking_for_relationship": true,
+        "preferred_industries": ["tech", "sports"],
+        "updated_at": "2025-05-10T12:30:00Z"
+      },
+      {
+        "user_id": "u1010",
+        "preferred_gender": "male",
+        "age_min": 25,
+        "age_max": 35,
+        "max_distance_km": 25,
+        "location_lat": 40.7128,
+        "location_lng": -74.0060,
+        "looking_for_relationship": true,
+        "preferred_industries": ["tech", "science"],
+        "updated_at": "2025-05-11T09:55:00Z"
+      }
+    ],
+    
+    "likes": [
+      {
+        "id": "l1111",
+        "from_user_id": "u1111",
+        "to_user_id": "u2222",
+        "liked_at": "2025-05-05T12:00:00Z"
+      },
+      {
+        "id": "l2222",
+        "from_user_id": "u2222",
+        "to_user_id": "u1111",
+        "liked_at": "2025-05-06T10:30:00Z"
+      },
+      {
+        "id": "l3333",
+        "from_user_id": "u3333",
+        "to_user_id": "u4444",
+        "liked_at": "2025-05-07T14:15:00Z"
+      },
+      {
+        "id": "l4444",
+        "from_user_id": "u4444",
+        "to_user_id": "u3333",
+        "liked_at": "2025-05-08T09:45:00Z"
+      },
+      {
+        "id": "l5555",
+        "from_user_id": "u5555",
+        "to_user_id": "u8888",
+        "liked_at": "2025-05-09T16:20:00Z"
+      },
+      {
+        "id": "l6666",
+        "from_user_id": "u6666",
+        "to_user_id": "u7777",
+        "liked_at": "2025-05-10T11:10:00Z"
+      },
+      {
+        "id": "l7777",
+        "from_user_id": "u7777",
+        "to_user_id": "u6666",
+        "liked_at": "2025-05-11T13:25:00Z"
+      },
+      {
+        "id": "l8888",
+        "from_user_id": "u8888",
+        "to_user_id": "u5555",
+        "liked_at": "2025-05-12T10:40:00Z"
+      },
+      {
+        "id": "l9999",
+        "from_user_id": "u9999",
+        "to_user_id": "u1010",
+        "liked_at": "2025-05-13T15:15:00Z"
+      },
+      {
+        "id": "l1010",
+        "from_user_id": "u1010",
+        "to_user_id": "u9999",
+        "liked_at": "2025-05-14T12:05:00Z"
+      }
+    ],
+    
+    "matches": [
+      {
+        "id": "m1111",
+        "user1_id": "u1111",
+        "user2_id": "u2222",
+        "matched_at": "2025-05-06T13:00:00Z"
+      },
+      {
+        "id": "m2222",
+        "user1_id": "u3333",
+        "user2_id": "u4444",
+        "matched_at": "2025-05-08T14:30:00Z"
+      },
+      {
+        "id": "m3333",
+        "user1_id": "u5555",
+        "user2_id": "u8888",
+        "matched_at": "2025-05-12T16:45:00Z"
+      },
+      {
+        "id": "m4444",
+        "user1_id": "u6666",
+        "user2_id": "u7777",
+        "matched_at": "2025-05-11T13:30:00Z"
+      },
+      {
+        "id": "m5555",
+        "user1_id": "u9999",
+        "user2_id": "u1010",
+        "matched_at": "2025-05-14T15:20:00Z"
+      },
+      {
+        "id": "m6666",
+        "user1_id": "u1111",
+        "user2_id": "u7777",
+        "matched_at": "2025-05-15T10:10:00Z"
+      },
+      {
+        "id": "m7777",
+        "user1_id": "u2222",
+        "user2_id": "u4444",
+        "matched_at": "2025-05-15T14:45:00Z"
+      },
+      {
+        "id": "m8888",
+        "user1_id": "u3333",
+        "user2_id": "u6666",
+        "matched_at": "2025-05-16T09:30:00Z"
+      },
+      {
+        "id": "m9999",
+        "user1_id": "u8888",
+        "user2_id": "u1010",
+        "matched_at": "2025-05-16T11:55:00Z"
+      },
+      {
+        "id": "m1010",
+        "user1_id": "u5555",
+        "user2_id": "u9999",
+        "matched_at": "2025-05-16T13:15:00Z"
+      }
+    ],
+    
+    "messages": [
+      {
+        "id": "msg1111",
+        "match_id": "m1111",
+        "sender_id": "u1111",
+        "content": "Hey Bob, nice to match with you!",
+        "sent_at": "2025-05-06T13:05:00Z"
+      },
+      {
+        "id": "msg2222",
+        "match_id": "m1111",
+        "sender_id": "u2222",
+        "content": "Hi Alice! Great to match with you too! How's your day going?",
+        "sent_at": "2025-05-06T13:10:00Z"
+      },
+      {
+        "id": "msg3333",
+        "match_id": "m2222",
+        "sender_id": "u3333",
+        "content": "Hello Diana! I saw you like yoga. How long have you been practicing?",
+        "sent_at": "2025-05-08T14:35:00Z"
+      },
+      {
+        "id": "msg4444",
+        "match_id": "m2222",
+        "sender_id": "u4444",
+        "content": "Hi Charlie! I've been practicing for about 5 years now. Do you do any yoga?",
+        "sent_at": "2025-05-08T15:00:00Z"
+      },
+      {
+        "id": "msg5555",
+        "match_id": "m3333",
+        "sender_id": "u5555",
+        "content": "Hannah, your profile is fascinating! I'd love to hear more about your environmental work.",
+        "sent_at": "2025-05-12T16:50:00Z"
+      },
+      {
+        "id": "msg6666",
+        "match_id": "m4444",
+        "sender_id": "u6666",
+        "content": "Hi Greg! I see you're into music production. What kind of music do you make?",
+        "sent_at": "2025-05-11T13:35:00Z"
+      },
+      {
+        "id": "msg7777",
+        "match_id": "m5555",
+        "sender_id": "u9999",
+        "content": "Julia, I noticed you're into astronomy. Any favorite celestial objects?",
+        "sent_at": "2025-05-14T15:25:00Z"
+      },
+      {
+        "id": "msg8888",
+        "match_id": "m6666",
+        "sender_id": "u1111",
+        "content": "Hey Greg! I see you're a sound engineer. That sounds fascinating!",
+        "sent_at": "2025-05-15T10:15:00Z"
+      },
+      {
+        "id": "msg9999",
+        "match_id": "m7777",
+        "sender_id": "u2222",
+        "content": "Hi Diana! Your graphic design work looks amazing from what I can see.",
+        "sent_at": "2025-05-15T14:50:00Z"
+      },
+      {
+        "id": "msg1010",
+        "match_id": "m8888",
+        "sender_id": "u3333",
+        "content": "Fiona, I love books too! What are you reading currently?",
+        "sent_at": "2025-05-16T09:35:00Z"
+      }
+    ],
+    
+    "interests": [
+      { "id": 1, "name": "Hiking" },
+      { "id": 2, "name": "Coding" },
+      { "id": 3, "name": "Music" },
+      { "id": 4, "name": "Travel" },
+      { "id": 5, "name": "Cooking" },
+      { "id": 6, "name": "Photography" },
+      { "id": 7, "name": "Reading" },
+      { "id": 8, "name": "Yoga" },
+      { "id": 9, "name": "Fitness" },
+      { "id": 10, "name": "Art" },
+      { "id": 11, "name": "Dancing" },
+      { "id": 12, "name": "Movies" },
+      { "id": 13, "name": "Gaming" },
+      { "id": 14, "name": "Cooking" },
+      { "id": 15, "name": "Sports" },
+      { "id": 16, "name": "Writing" },
+      { "id": 17, "name": "Gardening" },
+      { "id": 18, "name": "Technology" },
+      { "id": 19, "name": "Astronomy" },
+      { "id": 20, "name": "Volunteering" }
+    ]
+  
+  }
